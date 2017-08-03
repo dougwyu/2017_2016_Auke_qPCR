@@ -9,21 +9,71 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
-library(zoo)  # time series R "infrastructure" package
-```
 Set up github remote on https://github.com/dougwyu/2017_2016_Auke_qPCR
 https://www.r-bloggers.com/rstudio-and-github/
 Open Terminal
-```{bash}
+```{bash, }
 git remote add origin https://github.com/dougwyu/2017_2016_Auke_qPCR.git
 git config remote.origin.url git@github.com:dougwyu/2017_2016_Auke_qPCR.git
 git pull -u origin master
 git push -u origin master
 ```
 Pull and Push buttons are now active
-
 https://github.com/dougwyu/2017_2016_Auke_qPCR
+
+```{r}
+# add packages that I will use
+library(tidyverse) # includes all data-formatting packages as one big package (e.g. ggplot2, tibble, tidyr, readr, purrr, dplyr) # use dplyr::filter, dplyr::lag
+library(readxl)
+library(knitr)
+library(zoo)  # time series R "infrastructure" package
+```
+
+```{r}
+inputfile <- "AukeCreek_Sockeye_2016_qPCRVsCount_20170802.2.xlsx"
+
+sockeye_qpcr <- read_excel(inputfile, "Ct_Sockeye_2016_work", col_names = TRUE, col_types = c("date","numeric","text","text","text","numeric","text","text","text","numeric","numeric","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip"), na = "NA")
+
+sockeye_env <- read_excel(inputfile, "Summary", col_names = TRUE, col_types = c("skip","skip","skip","skip","skip","date","numeric","numeric","numeric","numeric","numeric","date","numeric","numeric","numeric","numeric"), na = "NA", n_max = 170)  # check number of rows to be input.  
+```
+
+
+```{r}
+names(sockeye_qpcr)
+# [1] "Date"            "orig_order"      "Plate_ID"        "Well"           
+# [5] "SampleID"        "SampleNumber"    "SampleReplicate" "CT_omit"        
+# [9] "updownstream"    "CT"              "Qty_ng_per_ul"  
+
+names(sockeye_env)
+# [1] "Date"              "Smolts"            "Sockeye_Male"     
+# [4] "Sockeye_Female"    "Sockeye_Jack"      "SockeyeTotalCount"
+# [7] "Water_Date"        "Gage_Height"       "Depth_inches"     
+# [10] "Q_cfs"             "Avg_Temp"
+
+```
+
+
+```{r}
+# keep only one set of qPCRs per sampleID and remove remaining rows that have no CT value
+sockeye_qpcr_filtered <- sockeye_qpcr %>% filter(CT_omit == "no_omit") %>% filter(CT != "NA")
+
+# OR keep both sets of qPCRs per sampleID and remove remaining rows that have no CT value
+sockeye_qpcr_filtered <- sockeye_qpcr %>% filter(CT != "NA")
+
+sockeye_qpcr_summary <- sockeye_qpcr_filtered %>% group_by(SampleID) %>% summarise(Date = first(Date), Plate_ID = first(Plate_ID), SampleNumber = first(SampleNumber), SampleReplicate = first(SampleReplicate), updownstream = first(updownstream), CT_mean = mean(CT, na.rm=TRUE), CT_sd = sd(CT, na.rm=TRUE), Qty_ng_per_ul_mean = mean(Qty_ng_per_ul, na.rm=TRUE), Qty_ng_per_ul_sd = sd(Qty_ng_per_ul, na.rm=TRUE), n_qpcrs = n()) %>% arrange(Date)
+
+# sockeye_qpcr_summary <- sockeye_qpcr_summary %>% select("Date", "SampleID", "Plate_ID", "SampleNumber", "SampleReplicate", "updownstream", "CT_mean", "CT_sd", "Qty_ng_per_ul_mean", "Qty_ng_per_ul_sd", "n")
+
+names(sockeye_qpcr_summary)
+# [1] "Date"               "SampleID"           "Plate_ID"          
+# [4] "SampleNumber"       "SampleReplicate"    "updownstream"      
+# [7] "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean"
+# [10] "Qty_ng_per_ul_sd"   "n_qpcrs"   
+
+sockeye_qpcr_env <-  left_join(sockeye_qpcr_summary, sockeye_env, by = "Date")
+```
+
+
 
 
 
