@@ -1,5 +1,5 @@
 ---
-title: "salmon"
+title: "Sockeye qPCR by Sockeye counts"
 author: "Douglas Yu"
 date: "26/07/2017"
 output: html_document
@@ -54,15 +54,13 @@ names(sockeye_env)
 
 
 ```{r}
-# keep only one set of qPCRs per sampleID and remove remaining rows that have no CT value
+# keep ONLY ONE SET of qPCRs per sampleID and remove rows that have no CT value
 sockeye_qpcr_filtered <- sockeye_qpcr %>% filter(CT_omit == "no_omit") %>% filter(CT != "NA")
 
-# OR keep both sets of qPCRs per sampleID and remove remaining rows that have no CT value
+# OR keep ALL SETS of qPCRs per sampleID and remove rows that have no CT value
 sockeye_qpcr_filtered <- sockeye_qpcr %>% filter(CT != "NA")
 
 sockeye_qpcr_summary <- sockeye_qpcr_filtered %>% group_by(SampleID) %>% summarise(Date = first(Date), Plate_ID = first(Plate_ID), SampleNumber = first(SampleNumber), SampleReplicate = first(SampleReplicate), updownstream = first(updownstream), CT_mean = mean(CT, na.rm=TRUE), CT_sd = sd(CT, na.rm=TRUE), Qty_ng_per_ul_mean = mean(Qty_ng_per_ul, na.rm=TRUE), Qty_ng_per_ul_sd = sd(Qty_ng_per_ul, na.rm=TRUE), n_qpcrs = n()) %>% arrange(Date)
-
-# sockeye_qpcr_summary <- sockeye_qpcr_summary %>% select("Date", "SampleID", "Plate_ID", "SampleNumber", "SampleReplicate", "updownstream", "CT_mean", "CT_sd", "Qty_ng_per_ul_mean", "Qty_ng_per_ul_sd", "n")
 
 names(sockeye_qpcr_summary)
 # [1] "Date"               "SampleID"           "Plate_ID"          
@@ -73,8 +71,12 @@ names(sockeye_qpcr_summary)
 sockeye_qpcr_env <-  left_join(sockeye_qpcr_summary, sockeye_env, by = "Date")
 ```
 
+At this point, the dataset sockeye_qpcr_env should have one row per water sample (SampleID). Since there are two water samples per day, there should be an even number of rows (sampling days X 2), but some water samples failed completely in qPCR, so the final number of rows is 243.  The salmon count and water data are thus repeated over the two water samples.  
+
+For graphing, the sockeye_qpcr_env dataset will need to be separated into two subdatasets (SampleReplicate == A or == B), or do a summarise by SampleNumber, not SampleID.  
 
 
+# START HERE
 
 
 ```{r}
