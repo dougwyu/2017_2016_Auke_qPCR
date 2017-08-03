@@ -12,17 +12,18 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(zoo)  # time series R "infrastructure" package
 ```
-Set up github remote on github.com/dougwyu/Sichuan2014
+Set up github remote on https://github.com/dougwyu/2017_2016_Auke_qPCR
 https://www.r-bloggers.com/rstudio-and-github/
 Open Terminal
 ```{bash}
-git remote add origin https://github.com/dougwyu/Sichuan2014.git
-git config remote.origin.url git@github.com:dougwyu/Sichuan2014.git
+git remote add origin https://github.com/dougwyu/2017_2016_Auke_qPCR.git
+git config remote.origin.url git@github.com:dougwyu/2017_2016_Auke_qPCR.git
 git pull -u origin master
 git push -u origin master
 ```
 Pull and Push buttons are now active
 
+https://github.com/dougwyu/2017_2016_Auke_qPCR
 
 
 
