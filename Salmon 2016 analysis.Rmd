@@ -1,0 +1,35 @@
+---
+title: "salmon"
+author: "Douglas Yu"
+date: "26/07/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(zoo)  # time series R "infrastructure" package
+```
+Set up github remote on github.com/dougwyu/Sichuan2014
+https://www.r-bloggers.com/rstudio-and-github/
+Open Terminal
+```{bash}
+git remote add origin https://github.com/dougwyu/Sichuan2014.git
+git config remote.origin.url git@github.com:dougwyu/Sichuan2014.git
+git pull -u origin master
+git push -u origin master
+```
+Pull and Push buttons are now active
+
+
+
+
+```{r}
+ccf() # used to calculate cross-correlation of two univariate time series
+```
+
+https://onlinecourses.science.psu.edu/stat510/node/75/
+https://stats.stackexchange.com/questions/29096/correlation-between-two-time-series
+https://svds.com/avoiding-common-mistakes-with-time-series/
