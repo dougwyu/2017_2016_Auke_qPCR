@@ -71,9 +71,10 @@ names(sockeye_qpcr_summary)
 
 sockeye_qpcr_env <-  left_join(sockeye_qpcr_summary, sockeye_env, by = "Date")
 
-sockeye_qpcr_env <- sockeye_qpcr_env %>% mutate(Q_corr_Qpcr = Qty_ng_per_ul_mean/Q_cfs)
+sockeye_qpcr_env <- sockeye_qpcr_env %>% mutate(Q_corr_Qpcr = Qty_ng_per_ul_mean*Q_cfs)
 
 sockeye_qpcr_env_adults <- sockeye_qpcr_env %>% filter(updownstream == "upstream")
+
 ```
 
 At this point, the dataset sockeye_qpcr_env should have one row per water sample (SampleID). Since there are two water samples per day, there should be an even number of rows (sampling days X 2), but some water samples failed completely in qPCR, so the final number of rows is 243.  The salmon count and water data are thus repeated over the two water samples.  
@@ -81,7 +82,7 @@ At this point, the dataset sockeye_qpcr_env should have one row per water sample
 For graphing, the sockeye_qpcr_env dataset will need to be separated into two subdatasets (SampleReplicate == A or == B), or do a summarise by SampleNumber, not SampleID.  
 
 ```{r}
-names(sockeye_qpcr_env)
+names(sockeye_qpcr_env_adults)
 #  [1] "SampleID"           "Date"               "Plate_ID"          
 #  [4] "SampleNumber"       "SampleReplicate"    "updownstream"      
 #  [7] "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean"
@@ -91,14 +92,20 @@ names(sockeye_qpcr_env)
 # [19] "Depth_inches"       "Q_cfs"              "Avg_Temp"  
 # [22] "Q_corr_Qpcr" 
 
-sockadults <- ggplot(sockeye_qpcr_env_adults, aes(Date, SockeyeTotalCount)) + geom_line() +
-  xlab("") + ylab("Adult Counts")
-sockqpcr <- ggplot(sockeye_qpcr_env_adults, aes(Date, Qty_ng_per_ul_mean)) + geom_line() +
-  xlab("") + ylab("qPCR conc")
-Q_cfs <- ggplot(sockeye_qpcr_env_adults, aes(Date, Q_cfs)) + geom_line() + xlab("") + ylab("Q_cfs")
-temp <- ggplot(sockeye_qpcr_env_adults, aes(Date, Avg_Temp)) + geom_line() + xlab("") + ylab("Avg Temp")
-water <- ggplot(sockeye_qpcr_env_adults, aes(Date, Gage_Height)) + geom_line() + xlab("") + ylab("Gage Height")
-plot_grid(sockadults, sockqpcr, Q_cfs, water, temp, nrow = 5, align = "v")
+# only analyse sampleReplicate A or B
+sockeye_qpcr_env_adults_A <- sockeye_qpcr_env_adults %>% filter(SampleReplicate == "A")
+sockeye_qpcr_env_adults_B <- sockeye_qpcr_env_adults %>% filter(SampleReplicate == "B")
+
+sockeye_qpcr_env_adults_use <- sockeye_qpcr_env_adults_A
+
+sockadults <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, SockeyeTotalCount)) + geom_line() + xlab("") + ylab("Adult Counts")
+sockqpcr <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Qty_ng_per_ul_mean)) + geom_line() + xlab("") + ylab("qPCR conc")
+sockqpcrcorr <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Q_corr_Qpcr)) + geom_line() + xlab("") + ylab("qPCR conc * Q")
+Q_cfs <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Q_cfs)) + geom_line() + xlab("") + ylab("Q_cfs")
+temp <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Avg_Temp)) + geom_line() + xlab("") + ylab("Avg Temp")
+water <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Gage_Height)) + geom_line() + xlab("") + ylab("Gage Height")
+
+plot_grid(sockadults, sockqpcr, sockqpcrcorr, Q_cfs, water, temp, nrow = 6, align = "v")
 ```
 
 http://ggplot2.tidyverse.org/reference/facet_grid.html
