@@ -27,6 +27,7 @@ library(tidyverse) # includes all data-formatting packages as one big package (e
 library(readxl)
 library(knitr)
 library(zoo)  # time series R "infrastructure" package
+library(cowplot)
 ```
 
 ```{r}
@@ -91,11 +92,15 @@ names(sockeye_qpcr_env)
 # [19] "Depth_inches"       "Q_cfs"              "Avg_Temp"  
 
 
-ggplot(sockeye_qpcr_env_adults, aes(Date, SockeyeTotalCount)) + geom_line() +
+sockadults <- ggplot(sockeye_qpcr_env_adults, aes(Date, SockeyeTotalCount)) + geom_line() +
   xlab("") + ylab("Sockeye Adult Counts")
-ggplot(sockeye_qpcr_env_adults, aes(Date, Qty_ng_per_ul_mean)) + geom_line() +
+sockqpcr <- ggplot(sockeye_qpcr_env_adults, aes(Date, Qty_ng_per_ul_mean)) + geom_line() +
   xlab("") + ylab("qPCR concentration")
+plot_grid(sockadults, sockqpcr, labels = c("A", "B"), nrow = 2, align = "v")
 ```
+plot_grid(plot.mpg, plot.diamonds, labels = c("A", "B"), nrow = 2, align = "v")
+http://ggplot2.tidyverse.org/reference/facet_grid.html
+https://cran.r-project.org/web/packages/cowplot/vignettes/introduction.html
 
 ```{r}
 ccf() # used to calculate cross-correlation of two univariate time series
