@@ -70,16 +70,13 @@ names(sockeye_qpcr_summary)
 # [10] "Qty_ng_per_ul_sd"   "n_qpcrs"   
 
 sockeye_qpcr_env <-  left_join(sockeye_qpcr_summary, sockeye_env, by = "Date")
+
 sockeye_qpcr_env_adults <- sockeye_qpcr_env %>% filter(updownstream == "upstream")
 ```
 
 At this point, the dataset sockeye_qpcr_env should have one row per water sample (SampleID). Since there are two water samples per day, there should be an even number of rows (sampling days X 2), but some water samples failed completely in qPCR, so the final number of rows is 243.  The salmon count and water data are thus repeated over the two water samples.  
 
 For graphing, the sockeye_qpcr_env dataset will need to be separated into two subdatasets (SampleReplicate == A or == B), or do a summarise by SampleNumber, not SampleID.  
-
-
-# START HERE
-
 
 ```{r}
 names(sockeye_qpcr_env)
@@ -93,12 +90,15 @@ names(sockeye_qpcr_env)
 
 
 sockadults <- ggplot(sockeye_qpcr_env_adults, aes(Date, SockeyeTotalCount)) + geom_line() +
-  xlab("") + ylab("Sockeye Adult Counts")
+  xlab("") + ylab("Adult Counts")
 sockqpcr <- ggplot(sockeye_qpcr_env_adults, aes(Date, Qty_ng_per_ul_mean)) + geom_line() +
-  xlab("") + ylab("qPCR concentration")
-plot_grid(sockadults, sockqpcr, labels = c("A", "B"), nrow = 2, align = "v")
+  xlab("") + ylab("qPCR conc")
+Q_cfs <- ggplot(sockeye_qpcr_env_adults, aes(Date, Q_cfs)) + geom_line() + xlab("") + ylab("Q_cfs")
+temp <- ggplot(sockeye_qpcr_env_adults, aes(Date, Avg_Temp)) + geom_line() + xlab("") + ylab("Avg Temp")
+water <- ggplot(sockeye_qpcr_env_adults, aes(Date, Gage_Height)) + geom_line() + xlab("") + ylab("Gage Height")
+plot_grid(sockadults, sockqpcr, Q_cfs, water, temp, nrow = 5, align = "v")
 ```
-plot_grid(plot.mpg, plot.diamonds, labels = c("A", "B"), nrow = 2, align = "v")
+
 http://ggplot2.tidyverse.org/reference/facet_grid.html
 https://cran.r-project.org/web/packages/cowplot/vignettes/introduction.html
 
