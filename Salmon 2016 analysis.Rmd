@@ -71,6 +71,8 @@ names(sockeye_qpcr_summary)
 
 sockeye_qpcr_env <-  left_join(sockeye_qpcr_summary, sockeye_env, by = "Date")
 
+sockeye_qpcr_env <- sockeye_qpcr_env %>% mutate(Q_corr_Qpcr = Qty_ng_per_ul_mean/Q_cfs)
+
 sockeye_qpcr_env_adults <- sockeye_qpcr_env %>% filter(updownstream == "upstream")
 ```
 
@@ -87,7 +89,7 @@ names(sockeye_qpcr_env)
 # [13] "Sockeye_Male"       "Sockeye_Female"     "Sockeye_Jack"      
 # [16] "SockeyeTotalCount"  "Water_Date"         "Gage_Height"       
 # [19] "Depth_inches"       "Q_cfs"              "Avg_Temp"  
-
+# [22] "Q_corr_Qpcr" 
 
 sockadults <- ggplot(sockeye_qpcr_env_adults, aes(Date, SockeyeTotalCount)) + geom_line() +
   xlab("") + ylab("Adult Counts")
