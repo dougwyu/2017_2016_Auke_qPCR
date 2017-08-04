@@ -23,7 +23,7 @@ https://github.com/dougwyu/2017_2016_Auke_qPCR
 
 ```{r}
 # add packages that I will use
-library(tidyverse) # includes all data-formatting packages as one big package (e.g. ggplot2, tibble, tidyr, readr, purrr, dplyr) # use dplyr::filter, dplyr::lag
+library(tidyverse) # includes all data-formatting packages as one big package (e.g. ggplot2, tibble, tidyr, readr, purrr, dplyr) # because of conflicts, use:  dplyr::filter, dplyr::lag
 library(readxl)
 library(knitr)
 library(zoo)  # time series R "infrastructure" package
@@ -52,7 +52,7 @@ names(sockeye_env)
 # [10] "Q_cfs"             "Avg_Temp"
 
 ```
-
+Q_cfs seems to be the measure of flux, aka discharge:  cubic feet per second(?).  Cross sectional area X water velocity
 
 ```{r}
 # keep ONLY ONE SET of qPCRs per sampleID and remove rows that have no CT value
