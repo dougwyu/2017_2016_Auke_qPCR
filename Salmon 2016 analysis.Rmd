@@ -61,13 +61,13 @@ sockeye_qpcr_filtered <- sockeye_qpcr %>% filter(CT_omit == "no_omit") %>% filte
 # OR keep ALL SETS of qPCRs per sampleID and remove rows that have no CT value
 sockeye_qpcr_filtered <- sockeye_qpcr %>% filter(CT != "NA")
 
-sockeye_qpcr_summary <- sockeye_qpcr_filtered %>% group_by(SampleID) %>% summarise(Date = first(Date), Plate_ID = first(Plate_ID), SampleNumber = first(SampleNumber), SampleReplicate = first(SampleReplicate), updownstream = first(updownstream), CT_mean = mean(CT, na.rm=TRUE), CT_sd = sd(CT, na.rm=TRUE), Qty_ng_per_ul_mean = mean(Qty_ng_per_ul, na.rm=TRUE), Qty_ng_per_ul_sd = sd(Qty_ng_per_ul, na.rm=TRUE), n_qpcrs = n()) %>% arrange(Date)
-
 names(sockeye_qpcr_summary)
 # [1] "Date"               "SampleID"           "Plate_ID"          
 # [4] "SampleNumber"       "SampleReplicate"    "updownstream"      
 # [7] "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean"
 # [10] "Qty_ng_per_ul_sd"   "n_qpcrs"   
+ 
+sockeye_qpcr_summary <- sockeye_qpcr_filtered %>% group_by(SampleID) %>% summarise(Date = first(Date), Plate_ID = first(Plate_ID), SampleNumber = first(SampleNumber), SampleReplicate = first(SampleReplicate), updownstream = first(updownstream), CT_mean = mean(CT, na.rm=TRUE), CT_sd = sd(CT, na.rm=TRUE), Qty_ng_per_ul_mean = mean(Qty_ng_per_ul, na.rm=TRUE), Qty_ng_per_ul_sd = sd(Qty_ng_per_ul, na.rm=TRUE), n_qpcrs = n()) %>% arrange(Date)
 
 sockeye_qpcr_env <-  left_join(sockeye_qpcr_summary, sockeye_env, by = "Date")
 
