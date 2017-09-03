@@ -9,18 +9,6 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Set up github remote on https://github.com/dougwyu/2017_2016_Auke_qPCR
-https://www.r-bloggers.com/rstudio-and-github/
-Open Terminal
-```{bash, }
-git remote add origin https://github.com/dougwyu/2017_2016_Auke_qPCR.git
-git config remote.origin.url git@github.com:dougwyu/2017_2016_Auke_qPCR.git
-git pull -u origin master
-git push -u origin master
-```
-Pull and Push buttons are now active
-https://github.com/dougwyu/2017_2016_Auke_qPCR
-
 ```{r}
 # add packages that I will use
 library(tidyverse) # includes all data-formatting packages as one big package (e.g. ggplot2, tibble, tidyr, readr, purrr, dplyr) # because of conflicts, use:  dplyr::filter, dplyr::lag
@@ -263,3 +251,18 @@ ccf() # used to calculate cross-correlation of two univariate time series
 https://onlinecourses.science.psu.edu/stat510/node/75/
 https://stats.stackexchange.com/questions/29096/correlation-between-two-time-series
 https://svds.com/avoiding-common-mistakes-with-time-series/
+
+
+
+Don't run this code. 
+Set up github remote on https://github.com/dougwyu/2017_2016_Auke_qPCR
+https://www.r-bloggers.com/rstudio-and-github/
+Open Terminal
+```{bash, }
+git remote add origin https://github.com/dougwyu/2017_2016_Auke_qPCR.git
+git config remote.origin.url git@github.com:dougwyu/2017_2016_Auke_qPCR.git
+git pull -u origin master
+git push -u origin master
+```
+Pull and Push buttons are now active
+https://github.com/dougwyu/2017_2016_Auke_qPCR
