@@ -108,7 +108,7 @@ sockqpcr <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Qty_ng_per_ul_mean)) +
 sockqpcrcorrQ <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Q_corr_qpcr)) + geom_line() + xlab("") + ylab("Qcfs_corr_qPCR") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
 Q_cfs <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Q_cfs)) + geom_line() + xlab("") + ylab("Q_cfs") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
 water <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Gage_Height)) + geom_line() + xlab("") + ylab("Gage Height") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
-sockqpcrcorrG <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, G_corr_qpcr)) + geom_line() + xlab("") + ylab("qPCR conc*G") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+sockqpcrcorrG <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, G_corr_qpcr)) + geom_line() + xlab("") + ylab("Gage_corr_qPCR") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
 temp <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Avg_Temp)) + geom_line() + xlab("") + ylab("Avg Temp") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
 
 plot_grid(sockadults, sockqpcr, sockqpcrcorrQ, Q_cfs, sockqpcrcorrG, water, temp, nrow = 7, align = "v")
