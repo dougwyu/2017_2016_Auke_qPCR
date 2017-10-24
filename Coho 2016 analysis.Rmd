@@ -1,0 +1,271 @@
+---
+title: "Coho qPCR by Coho counts"
+author: "Douglas Yu"
+date: "24/10/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# add packages that I will use
+library(tidyverse) # includes all data-formatting packages as one big package (e.g. ggplot2, tibble, tidyr, readr, purrr, dplyr) # because of conflicts, use:  dplyr::filter, dplyr::lag
+library(readxl)
+library(knitr)
+library(zoo)  # time series R "infrastructure" package
+library(cowplot)
+library(nlme)
+library(MuMIn)
+```
+
+```{r sockeye input}
+inputfile <- "data/2016_AukeCoho_qPCR_20171024.xlsx"
+
+sockeye_qpcr <- read_excel(inputfile, "Ct_Sockeye_2016_work", col_names = TRUE, col_types = c("date","numeric","text","text","text","numeric","text","text","text","numeric","numeric","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip"), na = "NA")
+
+sockeye_env <- read_excel(inputfile, "Summary", col_names = TRUE, col_types = c("skip","skip","skip","skip","skip","date","numeric","numeric","numeric","numeric","numeric","date","numeric","numeric","numeric","numeric","skip","skip","skip","skip"), na = "NA", n_max = 170)  # check number of rows to be input.  
+```
+
+
+```{r}
+names(sockeye_qpcr)
+# [1] "Date"            "orig_order"      "Plate_ID"        "Well"           
+# [5] "SampleID"        "SampleNumber"    "SampleReplicate" "CT_omit"        
+# [9] "updownstream"    "CT"              "Qty_ng_per_ul"  
+
+names(sockeye_env)
+# [1] "Date"              "Smolts"            "Sockeye_Male"     
+# [4] "Sockeye_Female"    "Sockeye_Jack"      "SockeyeTotalCount"
+# [7] "Water_Date"        "Gage_Height"       "Depth_inches"     
+# [10] "Q_cfs"             "Avg_Temp"
+
+```
+Q_cfs seems to be the measure of flux, aka discharge:  cubic feet per second(?).  Cross sectional area X water velocity
+
+```{r}
+# keep ONLY ONE SET of qPCRs per sampleID and remove rows that have no CT value
+# sockeye_qpcr_filtered <- sockeye_qpcr %>% filter(CT_omit == "no_omit") %>% filter(CT != "NA")
+
+# OR keep ALL SETS of qPCRs per sampleID and remove rows that have no CT value
+sockeye_qpcr_filtered <- sockeye_qpcr %>% filter(CT != "NA")
+
+sockeye_qpcr_summary <- sockeye_qpcr_filtered %>% group_by(SampleID) %>% summarise(Date = first(Date), Plate_ID = first(Plate_ID), SampleNumber = first(SampleNumber), SampleReplicate = first(SampleReplicate), updownstream = first(updownstream), CT_mean = mean(CT, na.rm=TRUE), CT_sd = sd(CT, na.rm=TRUE), Qty_ng_per_ul_mean = mean(Qty_ng_per_ul, na.rm=TRUE), Qty_ng_per_ul_sd = sd(Qty_ng_per_ul, na.rm=TRUE), n_qpcrs = sum(!is.na(CT))) %>% arrange(Date)
+
+# n_qpcrs = n() # previously used instead of n_qpcrs = sum(!is.na(CT))
+
+
+names(sockeye_qpcr_summary)
+# [1] "Date"               "SampleID"           "Plate_ID"          
+# [4] "SampleNumber"       "SampleReplicate"    "updownstream"      
+# [7] "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean"
+# [10] "Qty_ng_per_ul_sd"   "n_qpcrs"   
+ 
+sockeye_qpcr_env <-  left_join(sockeye_qpcr_summary, sockeye_env, by = "Date")
+
+names(sockeye_qpcr_env)
+#  [1] "SampleID"           "Date"               "Plate_ID"          
+#  [4] "SampleNumber"       "SampleReplicate"    "updownstream"      
+#  [7] "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean"
+# [10] "Qty_ng_per_ul_sd"   "n_qpcrs"            "Smolts"            
+# [13] "Sockeye_Male"       "Sockeye_Female"     "Sockeye_Jack"      
+# [16] "SockeyeTotalCount"  "Water_Date"         "Gage_Height"       
+# [19] "Depth_inches"       "Q_cfs"              "Avg_Temp"          
+# [22] "Q_corr_Qpcr"     
+
+sockeye_qpcr_env <- sockeye_qpcr_env %>% mutate(Q_corr_qpcr = Qty_ng_per_ul_mean*(Q_cfs/max(Q_cfs)))
+
+sockeye_qpcr_env <- sockeye_qpcr_env %>% mutate(G_corr_qpcr = Qty_ng_per_ul_mean*(Gage_Height/max(Gage_Height)))
+
+sockeye_qpcr_env_adults <- sockeye_qpcr_env %>% filter(updownstream == "upstream")
+
+```
+
+At this point, the dataset sockeye_qpcr_env should have one row per water sample (SampleID). Since there are two water samples per day, there should be an even number of rows (sampling days X 2), but some water samples failed completely in qPCR, so the final number of rows is 243.  The salmon count and water data are thus repeated over the two water samples.  
+
+For graphing, the sockeye_qpcr_env dataset will need to be separated into two subdatasets (SampleReplicate == A or == B), or do a summarise by SampleNumber, not SampleID.  
+
+```{r}
+names(sockeye_qpcr_env_adults)
+#  [1] "SampleID"           "Date"               "Plate_ID"          
+#  [4] "SampleNumber"       "SampleReplicate"    "updownstream"      
+#  [7] "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean"
+# [10] "Qty_ng_per_ul_sd"   "n_qpcrs"            "Smolts"            
+# [13] "Sockeye_Male"       "Sockeye_Female"     "Sockeye_Jack"      
+# [16] "SockeyeTotalCount"  "Water_Date"         "Gage_Height"       
+# [19] "Depth_inches"       "Q_cfs"              "Avg_Temp"          
+# [22] "Q_corr_Qpcr"        "G_corr_Qpcr"    
+
+# only analyse sampleReplicate A or B
+sockeye_qpcr_env_adults_A <- sockeye_qpcr_env_adults %>% filter(SampleReplicate == "A")
+sockeye_qpcr_env_adults_B <- sockeye_qpcr_env_adults %>% filter(SampleReplicate == "B")
+
+sockeye_qpcr_env_adults_use <- sockeye_qpcr_env_adults_B
+
+sockadults <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, SockeyeTotalCount)) + geom_line() + xlab("") + ylab("Adult Counts") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+
+sockqpcrcorrQ <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Q_corr_qpcr)) + geom_line() + xlab("") + ylab("Qcfs_corr_qPCR") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+
+sockqpcr <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Qty_ng_per_ul_mean)) + geom_line() + xlab("") + ylab("qPCR conc") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+
+Q_cfs <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Q_cfs)) + geom_line() + xlab("") + ylab("Q_cfs") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+water <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Gage_Height)) + geom_line() + xlab("") + ylab("Gage Height") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+sockqpcrcorrG <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, G_corr_qpcr)) + geom_line() + xlab("") + ylab("Gage_corr_qPCR") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+temp <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Avg_Temp)) + geom_line() + xlab("") + ylab("Avg Temp") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+
+plot_grid(sockadults, sockqpcr, sockqpcrcorrQ, Q_cfs, sockqpcrcorrG, water, temp, nrow = 7, align = "v")
+
+
+# background_grid(major = c("xy", "x", "y", "only_minor", "none"), minor = c("xy", "x", "y", "none"), size.major = 0.2, size.minor = 0.5, colour.major = "grey90", colour.minor = "grey98")
+```
+
+http://ggplot2.tidyverse.org/reference/facet_grid.html
+https://cran.r-project.org/web/packages/cowplot/vignettes/introduction.html
+
+```{r}
+# write.csv(sockeye_qpcr_env_adults_A, "analysis/sockeye_qpcr_env_adults_A.csv")
+# write.csv(sockeye_qpcr_env_adults_B, "analysis/sockeye_qpcr_env_adults_B.csv")
+names(sockeye_qpcr_env_adults_use)
+```
+
+```{r}
+sockeye_qpcr_env_adults_use <- sockeye_qpcr_env_adults_use %>% filter(SampleNumber <= 70) # remove samples after the main sockeye run has gone, to avoid qPCR reactions with dead sockeye adults
+with(sockeye_qpcr_env_adults_use, plot(SockeyeTotalCount, Qty_ng_per_ul_mean))
+with(sockeye_qpcr_env_adults_use, plot(SockeyeTotalCount, Q_corr_qpcr))
+mdl1 <- lm(SockeyeTotalCount ~ Q_corr_qpcr, data=sockeye_qpcr_env_adults_use)
+summary(mdl1)
+par(mfrow=c(2,2))
+plot(mdl1)
+par(mfrow=c(1,1))
+```
+
+```{r}
+plot(residuals(mdl1), type="b")
+abline(h=0, lty=3)
+```
+
+```{r}
+acf(residuals(mdl1))
+```
+
+```{r}
+mdl1.ac <- gls(SockeyeTotalCount ~ Q_corr_qpcr, data=sockeye_qpcr_env_adults_use, 
+              correlation = corAR1(form=~Q_corr_qpcr),
+              na.action=na.omit)
+summary(mdl1.ac)
+```
+
+```{r}
+coef(mdl1)
+coef(mdl1.ac)
+qqnorm(mdl1.ac)
+```
+
+```{r}
+acf(residuals(mdl1.ac, type="p"))
+```
+
+```{r}
+model.sel(mdl1, mdl1.ac)
+```
+
+
+
+Tutorial on how to analyse time series
+https://rpubs.com/markpayne/164550
+
+```{r}
+dat.raw <- read.table("data/Hawaii.txt",header=TRUE)
+dat.all <- data.frame(year=dat.raw$Year,birds=sqrt(dat.raw$Moorhen.Kauai),rain=dat.raw$Rainfall)
+dat <- subset(dat.all,year>=1973)
+# save(dat, file="Correlation_data.RData")
+```
+
+```{r}
+plot(dat$year, dat$birds)
+```
+
+```{r}
+mdl <- lm(birds ~ year, data=dat)
+summary(mdl)
+par(mfrow=c(2,2))
+plot(mdl)
+```
+
+```{r}
+par(mfrow=c(1,1))
+plot(residuals(mdl))
+```
+
+```{r}
+plot(residuals(mdl),type="b")
+abline(h=0,lty=3)
+```
+
+```{r}
+acf(residuals(mdl))
+```
+
+```{r}
+library(nlme)
+mdl.ac <- gls(birds ~ year, data=dat, 
+              correlation = corAR1(form=~year),
+              na.action=na.omit)
+summary(mdl.ac)
+```
+
+```{r}
+coef(mdl)
+```
+
+```{r}
+coef(mdl.ac)
+```
+
+```{r}
+plot(fitted(mdl.ac), residuals(mdl.ac))
+abline(h=0,lty=3)
+```
+
+```{r}
+qqnorm(mdl.ac)
+```
+
+```{r}
+acf(residuals(mdl.ac,type="p"))
+```
+
+```{r}
+model.sel(mdl, mdl.ac)
+```
+
+
+```{r}
+ccf() # used to calculate cross-correlation of two univariate time series
+```
+
+https://onlinecourses.science.psu.edu/stat510/node/75/
+https://stats.stackexchange.com/questions/29096/correlation-between-two-time-series
+https://svds.com/avoiding-common-mistakes-with-time-series/
+
+
+
+Don't run this code. 
+Set up github remote on https://github.com/dougwyu/2017_2016_Auke_qPCR
+https://www.r-bloggers.com/rstudio-and-github/
+Open Terminal
+```{bash, }
+git remote add origin https://github.com/dougwyu/2017_2016_Auke_qPCR.git
+git config remote.origin.url git@github.com:dougwyu/2017_2016_Auke_qPCR.git
+git pull -u origin master
+git push -u origin master
+```
+Pull and Push buttons are now active
+https://github.com/dougwyu/2017_2016_Auke_qPCR
+
+
+INLA
+IRW2 time series autocorrelations, used in the same way as other inla autocorrelation models f(IRW2 )
+vienna and inla time series 
+
