@@ -5,6 +5,8 @@ date: "24/10/2017"
 output: html_document
 ---
 
+Not yet written correctly for Coho. The input data are not formatted the same as in Sockeye, so it needs 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -20,24 +22,24 @@ library(nlme)
 library(MuMIn)
 ```
 
-```{r sockeye input}
+```{r coho input}
 inputfile <- "data/2016_AukeCoho_qPCR_20171024.xlsx"
 
-sockeye_qpcr <- read_excel(inputfile, "Ct_Sockeye_2016_work", col_names = TRUE, col_types = c("date","numeric","text","text","text","numeric","text","text","text","numeric","numeric","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip"), na = "NA")
+coho_qpcr <- read_excel(inputfile, "Sheet1", col_names = TRUE, col_types = c("date","numeric","text","text","text","numeric","text","text","text","numeric","numeric","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip"), na = "NA")
 
-sockeye_env <- read_excel(inputfile, "Summary", col_names = TRUE, col_types = c("skip","skip","skip","skip","skip","date","numeric","numeric","numeric","numeric","numeric","date","numeric","numeric","numeric","numeric","skip","skip","skip","skip"), na = "NA", n_max = 170)  # check number of rows to be input.  
+coho_env <- read_excel(inputfile, "Summary", col_names = TRUE, col_types = c("skip","skip","skip","skip","skip","date","numeric","numeric","numeric","numeric","numeric","date","numeric","numeric","numeric","numeric","skip","skip","skip","skip"), na = "NA", n_max = 170)  # check number of rows to be input.  
 ```
 
 
 ```{r}
-names(sockeye_qpcr)
+names(coho_qpcr)
 # [1] "Date"            "orig_order"      "Plate_ID"        "Well"           
 # [5] "SampleID"        "SampleNumber"    "SampleReplicate" "CT_omit"        
 # [9] "updownstream"    "CT"              "Qty_ng_per_ul"  
 
-names(sockeye_env)
-# [1] "Date"              "Smolts"            "Sockeye_Male"     
-# [4] "Sockeye_Female"    "Sockeye_Jack"      "SockeyeTotalCount"
+names(coho_env)
+# [1] "Date"              "Smolts"            "coho_Male"     
+# [4] "coho_Female"    "coho_Jack"      "cohoTotalCount"
 # [7] "Water_Date"        "Gage_Height"       "Depth_inches"     
 # [10] "Q_cfs"             "Avg_Temp"
 
@@ -46,73 +48,73 @@ Q_cfs seems to be the measure of flux, aka discharge:  cubic feet per second(?).
 
 ```{r}
 # keep ONLY ONE SET of qPCRs per sampleID and remove rows that have no CT value
-# sockeye_qpcr_filtered <- sockeye_qpcr %>% filter(CT_omit == "no_omit") %>% filter(CT != "NA")
+# coho_qpcr_filtered <- coho_qpcr %>% filter(CT_omit == "no_omit") %>% filter(CT != "NA")
 
 # OR keep ALL SETS of qPCRs per sampleID and remove rows that have no CT value
-sockeye_qpcr_filtered <- sockeye_qpcr %>% filter(CT != "NA")
+coho_qpcr_filtered <- coho_qpcr %>% filter(CT != "NA")
 
-sockeye_qpcr_summary <- sockeye_qpcr_filtered %>% group_by(SampleID) %>% summarise(Date = first(Date), Plate_ID = first(Plate_ID), SampleNumber = first(SampleNumber), SampleReplicate = first(SampleReplicate), updownstream = first(updownstream), CT_mean = mean(CT, na.rm=TRUE), CT_sd = sd(CT, na.rm=TRUE), Qty_ng_per_ul_mean = mean(Qty_ng_per_ul, na.rm=TRUE), Qty_ng_per_ul_sd = sd(Qty_ng_per_ul, na.rm=TRUE), n_qpcrs = sum(!is.na(CT))) %>% arrange(Date)
+coho_qpcr_summary <- coho_qpcr_filtered %>% group_by(SampleID) %>% summarise(Date = first(Date), Plate_ID = first(Plate_ID), SampleNumber = first(SampleNumber), SampleReplicate = first(SampleReplicate), updownstream = first(updownstream), CT_mean = mean(CT, na.rm=TRUE), CT_sd = sd(CT, na.rm=TRUE), Qty_ng_per_ul_mean = mean(Qty_ng_per_ul, na.rm=TRUE), Qty_ng_per_ul_sd = sd(Qty_ng_per_ul, na.rm=TRUE), n_qpcrs = sum(!is.na(CT))) %>% arrange(Date)
 
 # n_qpcrs = n() # previously used instead of n_qpcrs = sum(!is.na(CT))
 
 
-names(sockeye_qpcr_summary)
+names(coho_qpcr_summary)
 # [1] "Date"               "SampleID"           "Plate_ID"          
 # [4] "SampleNumber"       "SampleReplicate"    "updownstream"      
 # [7] "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean"
 # [10] "Qty_ng_per_ul_sd"   "n_qpcrs"   
  
-sockeye_qpcr_env <-  left_join(sockeye_qpcr_summary, sockeye_env, by = "Date")
+coho_qpcr_env <-  left_join(coho_qpcr_summary, coho_env, by = "Date")
 
-names(sockeye_qpcr_env)
+names(coho_qpcr_env)
 #  [1] "SampleID"           "Date"               "Plate_ID"          
 #  [4] "SampleNumber"       "SampleReplicate"    "updownstream"      
 #  [7] "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean"
 # [10] "Qty_ng_per_ul_sd"   "n_qpcrs"            "Smolts"            
-# [13] "Sockeye_Male"       "Sockeye_Female"     "Sockeye_Jack"      
-# [16] "SockeyeTotalCount"  "Water_Date"         "Gage_Height"       
+# [13] "coho_Male"       "coho_Female"     "coho_Jack"      
+# [16] "cohoTotalCount"  "Water_Date"         "Gage_Height"       
 # [19] "Depth_inches"       "Q_cfs"              "Avg_Temp"          
 # [22] "Q_corr_Qpcr"     
 
-sockeye_qpcr_env <- sockeye_qpcr_env %>% mutate(Q_corr_qpcr = Qty_ng_per_ul_mean*(Q_cfs/max(Q_cfs)))
+coho_qpcr_env <- coho_qpcr_env %>% mutate(Q_corr_qpcr = Qty_ng_per_ul_mean*(Q_cfs/max(Q_cfs)))
 
-sockeye_qpcr_env <- sockeye_qpcr_env %>% mutate(G_corr_qpcr = Qty_ng_per_ul_mean*(Gage_Height/max(Gage_Height)))
+coho_qpcr_env <- coho_qpcr_env %>% mutate(G_corr_qpcr = Qty_ng_per_ul_mean*(Gage_Height/max(Gage_Height)))
 
-sockeye_qpcr_env_adults <- sockeye_qpcr_env %>% filter(updownstream == "upstream")
+coho_qpcr_env_adults <- coho_qpcr_env %>% filter(updownstream == "upstream")
 
 ```
 
-At this point, the dataset sockeye_qpcr_env should have one row per water sample (SampleID). Since there are two water samples per day, there should be an even number of rows (sampling days X 2), but some water samples failed completely in qPCR, so the final number of rows is 243.  The salmon count and water data are thus repeated over the two water samples.  
+At this point, the dataset coho_qpcr_env should have one row per water sample (SampleID). Since there are two water samples per day, there should be an even number of rows (sampling days X 2), but some water samples failed completely in qPCR, so the final number of rows is 243.  The salmon count and water data are thus repeated over the two water samples.  
 
-For graphing, the sockeye_qpcr_env dataset will need to be separated into two subdatasets (SampleReplicate == A or == B), or do a summarise by SampleNumber, not SampleID.  
+For graphing, the coho_qpcr_env dataset will need to be separated into two subdatasets (SampleReplicate == A or == B), or do a summarise by SampleNumber, not SampleID.  
 
 ```{r}
-names(sockeye_qpcr_env_adults)
+names(coho_qpcr_env_adults)
 #  [1] "SampleID"           "Date"               "Plate_ID"          
 #  [4] "SampleNumber"       "SampleReplicate"    "updownstream"      
 #  [7] "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean"
 # [10] "Qty_ng_per_ul_sd"   "n_qpcrs"            "Smolts"            
-# [13] "Sockeye_Male"       "Sockeye_Female"     "Sockeye_Jack"      
-# [16] "SockeyeTotalCount"  "Water_Date"         "Gage_Height"       
+# [13] "coho_Male"       "coho_Female"     "coho_Jack"      
+# [16] "cohoTotalCount"  "Water_Date"         "Gage_Height"       
 # [19] "Depth_inches"       "Q_cfs"              "Avg_Temp"          
 # [22] "Q_corr_Qpcr"        "G_corr_Qpcr"    
 
 # only analyse sampleReplicate A or B
-sockeye_qpcr_env_adults_A <- sockeye_qpcr_env_adults %>% filter(SampleReplicate == "A")
-sockeye_qpcr_env_adults_B <- sockeye_qpcr_env_adults %>% filter(SampleReplicate == "B")
+coho_qpcr_env_adults_A <- coho_qpcr_env_adults %>% filter(SampleReplicate == "A")
+coho_qpcr_env_adults_B <- coho_qpcr_env_adults %>% filter(SampleReplicate == "B")
 
-sockeye_qpcr_env_adults_use <- sockeye_qpcr_env_adults_B
+coho_qpcr_env_adults_use <- coho_qpcr_env_adults_B
 
-sockadults <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, SockeyeTotalCount)) + geom_line() + xlab("") + ylab("Adult Counts") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+sockadults <- ggplot(coho_qpcr_env_adults_use, aes(Date, cohoTotalCount)) + geom_line() + xlab("") + ylab("Adult Counts") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
 
-sockqpcrcorrQ <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Q_corr_qpcr)) + geom_line() + xlab("") + ylab("Qcfs_corr_qPCR") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+sockqpcrcorrQ <- ggplot(coho_qpcr_env_adults_use, aes(Date, Q_corr_qpcr)) + geom_line() + xlab("") + ylab("Qcfs_corr_qPCR") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
 
-sockqpcr <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Qty_ng_per_ul_mean)) + geom_line() + xlab("") + ylab("qPCR conc") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+sockqpcr <- ggplot(coho_qpcr_env_adults_use, aes(Date, Qty_ng_per_ul_mean)) + geom_line() + xlab("") + ylab("qPCR conc") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
 
-Q_cfs <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Q_cfs)) + geom_line() + xlab("") + ylab("Q_cfs") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
-water <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Gage_Height)) + geom_line() + xlab("") + ylab("Gage Height") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
-sockqpcrcorrG <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, G_corr_qpcr)) + geom_line() + xlab("") + ylab("Gage_corr_qPCR") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
-temp <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Avg_Temp)) + geom_line() + xlab("") + ylab("Avg Temp") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+Q_cfs <- ggplot(coho_qpcr_env_adults_use, aes(Date, Q_cfs)) + geom_line() + xlab("") + ylab("Q_cfs") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+water <- ggplot(coho_qpcr_env_adults_use, aes(Date, Gage_Height)) + geom_line() + xlab("") + ylab("Gage Height") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+sockqpcrcorrG <- ggplot(coho_qpcr_env_adults_use, aes(Date, G_corr_qpcr)) + geom_line() + xlab("") + ylab("Gage_corr_qPCR") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+temp <- ggplot(coho_qpcr_env_adults_use, aes(Date, Avg_Temp)) + geom_line() + xlab("") + ylab("Avg Temp") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
 
 plot_grid(sockadults, sockqpcr, sockqpcrcorrQ, Q_cfs, sockqpcrcorrG, water, temp, nrow = 7, align = "v")
 
@@ -124,16 +126,16 @@ http://ggplot2.tidyverse.org/reference/facet_grid.html
 https://cran.r-project.org/web/packages/cowplot/vignettes/introduction.html
 
 ```{r}
-# write.csv(sockeye_qpcr_env_adults_A, "analysis/sockeye_qpcr_env_adults_A.csv")
-# write.csv(sockeye_qpcr_env_adults_B, "analysis/sockeye_qpcr_env_adults_B.csv")
-names(sockeye_qpcr_env_adults_use)
+# write.csv(coho_qpcr_env_adults_A, "analysis/coho_qpcr_env_adults_A.csv")
+# write.csv(coho_qpcr_env_adults_B, "analysis/coho_qpcr_env_adults_B.csv")
+names(coho_qpcr_env_adults_use)
 ```
 
 ```{r}
-sockeye_qpcr_env_adults_use <- sockeye_qpcr_env_adults_use %>% filter(SampleNumber <= 70) # remove samples after the main sockeye run has gone, to avoid qPCR reactions with dead sockeye adults
-with(sockeye_qpcr_env_adults_use, plot(SockeyeTotalCount, Qty_ng_per_ul_mean))
-with(sockeye_qpcr_env_adults_use, plot(SockeyeTotalCount, Q_corr_qpcr))
-mdl1 <- lm(SockeyeTotalCount ~ Q_corr_qpcr, data=sockeye_qpcr_env_adults_use)
+coho_qpcr_env_adults_use <- coho_qpcr_env_adults_use %>% filter(SampleNumber <= 70) # remove samples after the main coho run has gone, to avoid qPCR reactions with dead coho adults
+with(coho_qpcr_env_adults_use, plot(cohoTotalCount, Qty_ng_per_ul_mean))
+with(coho_qpcr_env_adults_use, plot(cohoTotalCount, Q_corr_qpcr))
+mdl1 <- lm(cohoTotalCount ~ Q_corr_qpcr, data=coho_qpcr_env_adults_use)
 summary(mdl1)
 par(mfrow=c(2,2))
 plot(mdl1)
@@ -150,7 +152,7 @@ acf(residuals(mdl1))
 ```
 
 ```{r}
-mdl1.ac <- gls(SockeyeTotalCount ~ Q_corr_qpcr, data=sockeye_qpcr_env_adults_use, 
+mdl1.ac <- gls(cohoTotalCount ~ Q_corr_qpcr, data=coho_qpcr_env_adults_use, 
               correlation = corAR1(form=~Q_corr_qpcr),
               na.action=na.omit)
 summary(mdl1.ac)
