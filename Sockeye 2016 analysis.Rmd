@@ -104,8 +104,11 @@ sockeye_qpcr_env_adults_B <- sockeye_qpcr_env_adults %>% filter(SampleReplicate 
 sockeye_qpcr_env_adults_use <- sockeye_qpcr_env_adults_B
 
 sockadults <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, SockeyeTotalCount)) + geom_line() + xlab("") + ylab("Adult Counts") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
-sockqpcr <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Qty_ng_per_ul_mean)) + geom_line() + xlab("") + ylab("qPCR conc") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+
 sockqpcrcorrQ <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Q_corr_qpcr)) + geom_line() + xlab("") + ylab("Qcfs_corr_qPCR") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+
+sockqpcr <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Qty_ng_per_ul_mean)) + geom_line() + xlab("") + ylab("qPCR conc") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+
 Q_cfs <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Q_cfs)) + geom_line() + xlab("") + ylab("Q_cfs") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
 water <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Gage_Height)) + geom_line() + xlab("") + ylab("Gage Height") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
 sockqpcrcorrG <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, G_corr_qpcr)) + geom_line() + xlab("") + ylab("Gage_corr_qPCR") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
@@ -127,6 +130,7 @@ names(sockeye_qpcr_env_adults_use)
 ```
 
 ```{r}
+sockeye_qpcr_env_adults_use <- sockeye_qpcr_env_adults_use %>% filter(SampleNumber <= 70) # remove samples after the main sockeye run has gone, to avoid qPCR reactions with dead sockeye adults
 with(sockeye_qpcr_env_adults_use, plot(SockeyeTotalCount, Qty_ng_per_ul_mean))
 with(sockeye_qpcr_env_adults_use, plot(SockeyeTotalCount, Q_corr_qpcr))
 mdl1 <- lm(SockeyeTotalCount ~ Q_corr_qpcr, data=sockeye_qpcr_env_adults_use)
@@ -165,12 +169,6 @@ acf(residuals(mdl1.ac, type="p"))
 ```{r}
 model.sel(mdl1, mdl1.ac)
 ```
-
-
-
-
-
-
 
 
 
@@ -239,8 +237,7 @@ acf(residuals(mdl.ac,type="p"))
 ```
 
 ```{r}
-library(MuMIn)
-model.sel(mdl,mdl.ac)
+model.sel(mdl, mdl.ac)
 ```
 
 
@@ -266,3 +263,9 @@ git push -u origin master
 ```
 Pull and Push buttons are now active
 https://github.com/dougwyu/2017_2016_Auke_qPCR
+
+
+INLA
+IRW2 time series autocorrelations, used in the same way as other inla autocorrelation models f(IRW2 )
+vienna and inla time series 
+
