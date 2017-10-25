@@ -5,7 +5,7 @@ date: "24/10/2017"
 output: html_document
 ---
 
-Not yet written correctly for Coho. The input data are not formatted the same as in Sockeye, so it needs 
+Not yet written correctly for Coho. The input data are not formatted the same as in Sockeye, so code needs to be rewritten. 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
