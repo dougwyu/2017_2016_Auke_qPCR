@@ -1,13 +1,7 @@
 # Salmon Project
-# 
-# Y. Li, Dec 12 2017
-# last modified Apr 10 2018
 
-# R version -> 3.4.4 (2018-03-15)
-# system -> x86_64, linux-gnu
-
-# install.packages("INLA", repos="https://inla.r-inla-download.org/R/stable", dep=TRUE)
-
+Y. Li, Dec 12 2017
+last modified Apr 11 2018
 
 ```{r, eval = FALSE}
 rm(list=ls())
@@ -16,10 +10,10 @@ rm(list=ls())
 ```{r packages and functions}
 lapply(c('zoo','cowplot','nlme','MuMIn','readxl','sp','geoR','lubridate','tidyverse','INLA'),library,character.only = T)
 # geoR requires XQuartz to be installed, from xquartz.macosforge.org
+# install.packages("INLA", repos="https://inla.r-inla-download.org/R/stable", dep=TRUE)
 
 sessionInfo()
 	
-# setwd("/home/yuanheng/Documents/Project_salmon/R/")
 source('source_salmon.r')
 ```
 
