@@ -15,17 +15,16 @@ rm(list=ls())
 
 ```{r packages and functions}
 lapply(c('zoo','cowplot','nlme','MuMIn','readxl','sp','geoR','lubridate','tidyverse','INLA'),library,character.only = T)
+# geoR requires XQuartz to be installed, from xquartz.macosforge.org
 
 sessionInfo()
-# geoR requires XQuartz to be installed, from xquartz.macosforge.org
 	
 # setwd("/home/yuanheng/Documents/Project_salmon/R/")
 source('source_salmon.r')
 ```
 
 
-```{r read in data, see 'salmon_datamining.r'}
-# ... 
+```{r read in data see salmon_datamining.r}
 dd.qpcr.env.adults.rm = read.table(file='data/sockeye_adults_narm_B.csv',sep=',',header=T)
 # there's another file where NAs of qPCR are treated as zero ->
 # file='data/sockeye_adults_nazero_B.csv'
@@ -78,23 +77,23 @@ corvif(dd.qpcr.env.adults.rm[ , c(MyVar[c(2,4)], "date.n")])
 
 
 ```{r descriptive plots}
-pdf("analysis/describe_salmon.pdf", width = 15, height = 5)
+# pdf("analysis/describe_salmon.# pdf", width = 15, height = 5)
 par(las=1, mfrow = c(1,1), mar = c(2,5,2,.5), oma = c(1,1,1.5,1),cex=1.2)
 # plot(dd.qpcr.env.adults.all$Date, dd.qpcr.env.adults.all$SockeyeTotalCount, xlab='', ylab='' ,type='l')
 plot(dd.qpcr.env.adults.rm$Date, dd.qpcr.env.adults.rm$SockeyeTotalCount, xlab='', ylab='' ,type='l')
 title(ylab='Individual', outer=T, line=-1.5, cex.lab=1.2)
 title(main='Daily Counts', cex.main=1.5)
 	
-dev.off()
+# dev.off()
 	
-pdf("analysis/describe_qpcr.pdf", width = 15, height = 5)
+# pdf("analysis/describe_qpcr.# pdf", width = 15, height = 5)
 par(las=1, mfrow = c(1,1), mar = c(2,5,2,.5), oma = c(1,1,1.5,1),cex=1.2)
 # plot(dd.qpcr.env.adults.all$Date, dd.qpcr.env.adults.all$Q_corr_qpcr.all, xlab='', ylab='', type='l')
 plot(dd.qpcr.env.adults.rm$Date, dd.qpcr.env.adults.rm$Q_corr_qpcr.rm, xlab='', ylab='', type='l')
 title(ylab='flow-corrected eDNA concentration', outer=T, line=-.8, cex.lab=1.2)
 title(main='Daily eDNA', cex.main=1.5)
 	
-dev.off()
+# dev.off()
 ```
 	
 ```{r INLA models}
@@ -120,8 +119,7 @@ summary(m.par0.rela)
 ```
 
 	
-```{r}
-# no autoregression
+```{r no autoregression}
 m.pnt.rela = inla(SockeyeTotalCount ~ Q_corr_qpcr.rm.norm2,
 			# verbose = T,
 			control.compute = list(dic = T, config = T, mlik = T, cpo = T),
@@ -152,27 +150,28 @@ hist(m.par0.rela$cpo$pit, breaks=50)	# the model has bias, even though cpo fails
 hist(m.par0.rela$cpo$cpo, breaks=50)	#
 par(mfrow=c(1,1))	
 
-pdf("analysis/PIT_ar-zero.pdf", width = 7, height = 7)
+# pdf("analysis/PIT_ar-zero.# pdf", width = 7, height = 7)
 
 par(las=1, mfrow = c(1,1), mar = c(2,5,2,.5), oma = c(1,1,1,1),cex=1.2)
 hist(m.par0.rela$cpo$pit,breaks=50, main="", cex.lab=1.2)
 title(main='PIT-values, fail32%', cex.main=1.35)
 	
-dev.off()
+# dev.off()
 	
 #  acf (auto-correlation function), checking residual correlation
 resid.count.ar0 = dd.qpcr.env.adults.rm$SockeyeTotalCount - m.par0.rela$summary.fitted.values$mean
 	
-pdf("analysis/acf_ar-zero.pdf", width = 7, height = 7)
+# pdf("analysis/acf_ar-zero.# pdf", width = 7, height = 7)
 
 par(las = 1, mfrow = c(1,1), mar = c(4,4,2.5,.5), oma = c(2,1,.5,1),cex=1.2)
 acf(resid.count.ar0, type = 'correlation', main = '', cex.lab = 1.2) # covariance
 title(main = 'Residual Autocorrelation', cex.main = 1.35)
 # not great at the highest peak, but I would say okay
 
-dev.off()
-	
-acf(resid.count.rw1, type='correlation' )
+# dev.off()
+
+# file does not exist
+# acf(resid.count.rw1, type='correlation' )
 	
 	# for other models 
 resid.count.nt = dd.qpcr.env.adults.rm$SockeyeTotalCount - m.pnt.rela$summary.fitted.values$mean
@@ -181,7 +180,7 @@ acf(resid.count.nt,type='correlation' )
 
 ```{r plot model parameters with autoregression}
 # ... plot latent
-pdf("analysis/time-smoother_ar-zero.pdf", width = 10, height = 7)
+# pdf("analysis/time-smoother_ar-zero.# pdf", width = 10, height = 7)
 
 par(las=1, mfrow = c(1,1), mar = c(4,3,2.5,.5), oma = c(1,1,1,1), cex=1.2)
 plot(dd.qpcr.env.adults.rm$Date, m.par0.rela$summary.random$txtdate[,2][7:108], type = 'l', ylab = '', xlab = '', ylim = c(min(m.par0.rela$summary.random$txtdate[,4]), max(m.par0.rela$summary.random$txtdate[,6])))		#
@@ -193,11 +192,11 @@ lines(dd.qpcr.env.adults.rm$Date, m.par0.rela$summary.random$txtdate[,4][7:108],
 lines(dd.qpcr.env.adults.rm$Date, m.par0.rela$summary.random$txtdate[,6][7:108], lty = 2, col = 'black')
 abline(h = 0, lty = 3)
 	
-dev.off()
+# dev.off()
 	
 
 # .. plot fitted with autoregression m.par0.rela
-pdf("analysis/fitted_ar-zero.pdf", width = 15, height = 5)
+# pdf("analysis/fitted_ar-zero.# pdf", width = 15, height = 5)
 
 par(las=1, mfrow = c(1,1), mar = c(4,4,2,.5), oma = c(1,1,1,1),cex=1.2)
 	
@@ -216,14 +215,14 @@ points(dd.qpcr.env.adults.rm$Date, dd.qpcr.env.adults.rm$SockeyeTotalCount, ylab
 	
 legend('topright', legend=c('count', 'fitted', '95% CI'), pch = c(20,NA, NA), col = c('#FFA50088', 'blue', 'lightblue'), lty = c(NA, 1, 1), lwd = c(1,1,10), bty = 'n', cex = 1.2)
 	
-dev.off()
+# dev.off()
 
 ```
 
 ```{r plot model parameters without autoregression}
 
 # .. plot fitted without autoregression:  m.pnt.rela
-pdf("analysis/fitted_ar-zero_no_autoregression.pdf", width = 15, height = 5)
+# pdf("analysis/fitted_ar-zero_no_autoregression.# pdf", width = 15, height = 5)
 
 par(las=1, mfrow = c(1,1), mar = c(4,4,2,.5), oma = c(1,1,1,1),cex=1.2)
 	
@@ -242,11 +241,11 @@ points(dd.qpcr.env.adults.rm$Date, dd.qpcr.env.adults.rm$SockeyeTotalCount, ylab
 	
 legend('topright', legend=c('count', 'fitted', '95% CI'), pch = c(20,NA, NA), col = c('#FFA50088', 'blue', 'lightblue'), lty = c(NA, 1, 1), lwd = c(1,1,10), bty = 'n', cex = 1.2)
 	
-dev.off()
+# dev.off()
 	
 	
 # ... posterior distribution
-pdf("analysis/posterior_ar-zero_no_autoregression.pdf", width = 12, height = 6)
+# pdf("analysis/posterior_ar-zero_no_autoregression.# pdf", width = 12, height = 6)
 
 par(las=1, mfrow = c(1,2), mar = c(4,4,1.5,.5), oma = c(1,1,1,1),cex=1.1)
 	
@@ -263,7 +262,7 @@ abline(v = m.pnt.rela$summary.fixed['Q_corr_qpcr.rm.norm2', "0.5quant"]*aa + bb,
 abline(v = m.pnt.rela$summary.fixed['Q_corr_qpcr.rm.norm2', "0.025quant"]*aa + bb, col = "red",lty=3)
 abline(v = m.pnt.rela$summary.fixed['Q_corr_qpcr.rm.norm2', "0.975quant"]*aa + bb, col = "red",lty=3)
 	
-dev.off()
+# dev.off()
 ```
 
 
