@@ -2,7 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
-
 old
-
 data/Hawaii.txt
+analysis/
+salmon_inla_clean.r
