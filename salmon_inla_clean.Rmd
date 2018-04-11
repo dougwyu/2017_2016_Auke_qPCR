@@ -103,8 +103,8 @@ hyperl=list(theta=list(prior='pc.prec', param=c(U, 0.05)))
 # 'ar' - regularly spaced time-series
 m.par0.rela = inla(SockeyeTotalCount ~ Q_corr_qpcr.rm.norm2 + f(txtdate, model = 'ar1', hyper=hyperl),
 			control.compute = list(dic = T, mlik = T, cpo = T, config = T),
-			control.inla = list(int.strategy = "grid", diff.logdens = 4, strategy="laplace", npoints=21),	
-			control.predictor = list(compute=T),
+			control.inla = list(int.strategy = "grid", diff.logdens = 4, strategy = "laplace", npoints = 21),	
+			control.predictor = list(compute = T),
 			family = 'zeroinflatedpoisson1', # can be replaced by 'poisson'
 			data = dd.qpcr.env.adults.rm
 		)
@@ -120,7 +120,6 @@ m.pnt.rela = inla(SockeyeTotalCount ~ Q_corr_qpcr.rm.norm2,
 			control.inla = list(int.strategy = "grid", diff.logdens = 4, strategy = "laplace", npoints = 21),	
 			control.predictor = list(compute = T),
 			#control.family = list(list(prior = 'lognormal')),		# gamma
-			
 			family = 'zeroinflatedpoisson1', #poisson
 			data = dd.qpcr.env.adults.rm
 		)
