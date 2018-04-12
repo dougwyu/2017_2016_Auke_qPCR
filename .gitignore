@@ -2,9 +2,5 @@
 .Rhistory
 .RData
 .Ruserdata
-old
+old/
 data/Hawaii.txt
-analysis/
-salmon_inla_clean.r
-salmon_inla_clean.html
-Re_r-files for salmon project.txt
