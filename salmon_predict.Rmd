@@ -1,0 +1,167 @@
+Salmon Project
+Y. Li, Mar. 21 2018
+last modified Apr 11 2018
+(Sockeye) using eDNA of every other day & interpolate to predict counts when eDNA data are not provided
+..........................................................................................................
+
+
+```{r eval = FALSE}
+rm(list=ls())
+```
+
+```{r}
+lapply(c('zoo', 'cowplot','nlme','MuMIn','readxl','sp','geoR','lubridate','tidyverse','INLA', 'imputeTS'), library, character.only = T)	
+source('source_salmon.r')
+sessionInfo()
+```
+	
+ .....................................
+```{r read in data}
+dd.qpcr.env.adults.rm = read.table(file='data/sockeye_adults_narm_B.csv',sep=',',header=T)
+```
+
+```{r format dates}
+dd.qpcr.env.adults.rm$Date = as.POSIXct(dd.qpcr.env.adults.rm$Date, format='%Y-%m-%d')
+dd.qpcr.env.adults.rm$Water_Date = as.POSIXct(dd.qpcr.env.adults.rm$Water_Date, format='%Y-%m-%d')
+	
+dd.qpcr.env.adults.rm$txtdate = strptime(as.character(dd.qpcr.env.adults.rm$Date),'%Y-%m-%d')
+dd.qpcr.env.adults.rm$txtdate = as.factor(format(dd.qpcr.env.adults.rm$txtdate,'%m-%d'))
+	
+datex=as.Date(strptime(dd.qpcr.env.adults.rm$txtdate,'%m-%d'))
+a = c(0,int_diff(datex)/days(1))
+for (i in length(a):1){	
+    a[i]=sum(a[1:i]) 
+    }
+dd.qpcr.env.adults.rm$date.n = a
+
+```
+
+```{r standardize variable}
+dd.qpcr.env.adults.rm$Q_corr_qpcr.rm.norm2 = MyStd(dd.qpcr.env.adults.rm$Q_corr_qpcr.rm)
+```
+	
+```{r cut to regularly spaced time-series}
+a
+a[2:110]-a[1:109]
+	
+dd.qpcr.env.adults.rm = dd.qpcr.env.adults.rm[7:108, ]
+dd.qpcr.env.adults.rm$txtdate
+```
+
+```{r make dataset for input & predict}
+data.input = dd.qpcr.env.adults.rm[seq(1, dim(dd.qpcr.env.adults.rm)[1], by=2), ]
+data.pred = dd.qpcr.env.adults.rm[seq(2, dim(dd.qpcr.env.adults.rm)[1], by=2), ]
+```
+
+prediction models
+
+```{r I inla model with half of the dataset}
+# (I.1) 
+inla.setOption(scale.model.default = TRUE)
+U = 0.1			# explore U & sigma values
+hyperl=list(theta=list(prior='pc.prec', param=c(U, 0.05)))
+
+# .. zero-inflated Poission & regularly spaced time-series
+m.par.rela.half = inla(SockeyeTotalCount ~ Q_corr_qpcr.rm.norm2 + f(txtdate, model = 'ar1', hyper=hyperl),
+			control.compute = list(dic =T, mlik=T, cpo=T, config=T),
+			control.inla=list(int.strategy = "grid", diff.logdens = 4, strategy="laplace", npoints=21),	
+			control.predictor = list(compute=T, link=1), #'link' use same family to compute fitted for NA, if no missing data, don't define 'link'
+			family = 'zeroinflatedpoisson1',
+			data = data.input
+		)
+	
+summary(m.par.rela.half)
+	
+# (1) auto-correlation
+resid.count.half = data.input$SockeyeTotalCount - m.par.rela.half$summary.fitted.values$mean
+acf(resid.count.half,type= 'correlation',main='inla half dataset')
+	
+# (2) cross-validation
+length(which(m.par.rela.half$cpo$failure!=0)) / length(m.par.rela.half$cpo$failure)
+	
+hist(m.par.rela.half$cpo$pit)	#
+hist(m.par.rela.half$cpo$cpo)
+	
+# (I.2) ....... interpolation ..........
+	# .. create data for interpolation
+x.all = ts(dd.qpcr.env.adults.rm$SockeyeTotalCount)	
+x.f = replace(x.all, seq(2, dim(dd.qpcr.env.adults.rm)[1], by=2), NA)
+x.f = replace(x.f, seq(1, dim(dd.qpcr.env.adults.rm)[1], by=2), m.par.rela.half$summary.fitted.values$mean)
+	
+inter.linear = na.interpolation(x.f)
+```
+
+```{r Inla directly with missing data}
+# (II)
+data.miss = dd.qpcr.env.adults.rm
+data.miss$Q_corr_qpcr.rm.norm2 = replace(data.miss$Q_corr_qpcr.rm.norm2, seq(2, dim(dd.qpcr.env.adults.rm)[1], by=2), NA)
+data.miss$SockeyeTotalCount = replace(data.miss$SockeyeTotalCount, seq(2, dim(dd.qpcr.env.adults.rm)[1], by=2), NA)
+
+# zero-inflated Poission & regularly spaced time-series
+miss.par.rela = inla(SockeyeTotalCount ~ Q_corr_qpcr.rm.norm2 + f(txtdate, model = 'ar1', hyper=hyperl),
+			control.compute = list(dic =T, mlik=T, cpo=T, config=T),
+			control.inla=list(int.strategy = "grid", diff.logdens = 4, strategy="laplace", npoints=21),	
+			control.predictor = list(compute=T, link=1), #'link' use same family to compute fitted for NA, if no missing data, don't define 'link'
+			family = 'zeroinflatedpoisson1',
+			data = data.miss
+		)
+	
+summary(miss.par.rela)
+	
+	# (1) auto-correlation
+resid.count.miss = data.miss$SockeyeTotalCount - miss.par.rela$summary.fitted.values$mean
+resid.count.miss = resid.count.miss[seq(1, dim(dd.qpcr.env.adults.rm)[1], by=2)]
+acf(resid.count.miss,type= 'correlation',main='inla with missing data')
+	
+	# (2) cross-validation
+length(which(miss.par.rela$cpo$failure!=0)) / length(miss.par.rela$cpo$failure)
+	
+#par(mfrow=c(1,2))
+hist(miss.par.rela$cpo$pit)	#
+hist(miss.par.rela$cpo$cpo)
+
+```
+
+```{r plotting both predict models}
+# pdf("plots/missing_ar-zero.pdf", width = 15, height = 10)
+par(las=1, mfrow = c(2,1), mar = c(4,4,2,.5), oma = c(1,1,1,1),cex=1.2)
+	
+plot(data.miss$Date, dd.qpcr.env.adults.rm$SockeyeTotalCount, ylim=(c(0,max(miss.par.rela$summary.fitted.values$'0.975quant'))), type='n', xlab='', ylab='')
+title(ylab='Individual', outer=T, adj=.8, line=-1.2, cex.lab=1.2)
+title(main='INLA with Missing Data', cex.main=1.5)
+
+# But we also may not want an opaque polygon
+polygon.x <- c(data.miss$Date, rev(data.miss$Date))
+polygon.y <- c(miss.par.rela$summary.fitted.values$'0.025quant', rev(miss.par.rela$summary.fitted.values$'0.975quant'))
+polygon(x=polygon.x, y=polygon.y, col='lightblue', border=NA)
+	
+lines(data.miss$Date, miss.par.rela$summary.fitted.values$mean, lty=1, col='blue')
+points(data.miss$Date, dd.qpcr.env.adults.rm$SockeyeTotalCount, pch=19, col='#FFA50088')
+	
+legend('topright', legend=c('count', 'fitted with missing', '95% CI'), pch = c(20,NA, NA), col = c('#FFA50088', 'blue', 'lightblue'), lty=c(NA, 1, 1), lwd=c(1,1,10), bty='n', cex=1.2)
+	
+
+
+plot(dd.qpcr.env.adults.rm$Date, x.all, pch=19, col='#FFA50088', xlab='', ylab='', ylim=c(0,max(x.all)*1.07))
+title(ylab='Individual', outer=T, adj=.25, line=-1.2, cex.lab=1.2)
+title(main='INLA then interpolate', cex.main=1.5)
+	
+lines(dd.qpcr.env.adults.rm$Date, inter.linear, col='blue')
+	
+legend('topright', legend=c('count', 'fitted & interpolate'), pch = c(20,NA), col = c('#FFA50088', 'blue'), lty=c(NA, 1), bty='n', cex=1.2)
+	
+# dev.off()
+par(mfrow = c(1,1))
+```
+
+
+
+
+
+
+
+
+
+
+
+
