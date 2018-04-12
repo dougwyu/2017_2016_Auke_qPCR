@@ -15,7 +15,6 @@ source('source_salmon.r')
 sessionInfo()
 ```
 	
- .....................................
 ```{r read in data}
 dd.qpcr.env.adults.rm = read.table(file='data/sockeye_adults_narm_B.csv',sep=',',header=T)
 ```
