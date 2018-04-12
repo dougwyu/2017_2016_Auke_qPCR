@@ -7,6 +7,9 @@ salmon_inla_clean.Rmd  # this runs the inla model on the full sockeye dataset
 salmon_predict.Rmd  # this removes every other day from the time series and runs inla on the dataset (either by using inla's own interpolation method or by interpolating the missing values and running inla on the newly interpolated dataset).  the idea here is to simulate sampling eDNA every other day, not every day.
 
 
+Next step (as of 12 April 2018) is to run inla on the coho dataset and then to see how well or badly the sockeye and coho datasets work on the other species. Ideally, we would have two years of eDNA & count data for each species, but we don't have that.  
+
+
 background information from Yuanheng (slightly edited):
 
 "The main r-script is 'salmon_inla_clean.Rmd'. 
