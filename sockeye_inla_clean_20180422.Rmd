@@ -3,6 +3,11 @@
 Y. Li, Dec 12 2017
 last modified Apr 11 2018
 
+DY questions:
+1.  what is the source of Qty_ng_per_ul_mean?  I can't find these numbers in AukeCreek_Sockeye_2016_qPCRVsCount_20170802.2.xlsx
+2.  what is source of Q_corr_qpcr.rm?
+
+
 ```{r, eval = FALSE}
 rm(list=ls())
 ```
@@ -32,7 +37,7 @@ dd.qpcr.env.adults.rm$Water_Date = as.POSIXct(dd.qpcr.env.adults.rm$Water_Date, 
 dd.qpcr.env.adults.rm$txtdate = strptime(as.character(dd.qpcr.env.adults.rm$Date),'%Y-%m-%d')
 dd.qpcr.env.adults.rm$txtdate = as.factor(format(dd.qpcr.env.adults.rm$txtdate,'%m-%d'))
 	
-datex=as.Date(strptime(dd.qpcr.env.adults.rm$txtdate,'%m-%d'))
+datex=as.Date(strptime(dd.qpcr.env.adults.rm$txtdate,'%m-%d')) # vector of number of days since day 0 for each sample (row)
 a = c(0,int_diff(datex)/days(1))
 for (i in length(a):1){	
     a[i]=sum(a[1:i]) 
@@ -41,14 +46,17 @@ dd.qpcr.env.adults.rm$date.n = a
 ```
 
 ```{r standardize variable}
-dd.qpcr.env.adults.rm$Q_corr_qpcr.rm.norm2 = MyStd(dd.qpcr.env.adults.rm$Q_corr_qpcr.rm)
-	
+dd.qpcr.env.adults.rm$Q_corr_qpcr.rm.norm2 = MyStd(dd.qpcr.env.adults.rm$Q_corr_qpcr.rm) # dd.qpcr.env.adults.rm$Q_corr_qpcr.rm = Qty_ng_per_ul_mean/Q_cfs, standardised
 hist(dd.qpcr.env.adults.rm$Q_corr_qpcr.rm.norm2, breaks=10)
 
+# dd.qpcr.env.adults.rm$testQq <- dd.qpcr.env.adults.rm$Qty_ng_per_ul_mean*dd.qpcr.env.adults.rm$Q_cfs
+# dd.qpcr.env.adults.rm$testq_overQ <- dd.qpcr.env.adults.rm$Qty_ng_per_ul_mean/dd.qpcr.env.adults.rm$Q_cfs
 ```
 
 ```{r cut to regularly spaced time-series}
 a
+a[2:110]
+a[1:109]
 a[2:110]-a[1:109]
 	
 dd.qpcr.env.adults.rm = dd.qpcr.env.adults.rm[7:108, ]
@@ -71,6 +79,8 @@ corvif(dd.qpcr.env.adults.rm[ , c(MyVar[c(2,4)], "date.n")])
 
 
 ```{r descriptive plots}
+plot(dd.qpcr.env.adults.rm$testq_overQ, dd.qpcr.env.adults.rm$testQq)
+
 # pdf("analysis/describe_salmon.# pdf", width = 15, height = 5)
 par(las=1, mfrow = c(1,1), mar = c(2,5,2,.5), oma = c(1,1,1.5,1),cex=1.2)
 # plot(dd.qpcr.env.adults.all$Date, dd.qpcr.env.adults.all$SockeyeTotalCount, xlab='', ylab='' ,type='l')
@@ -86,6 +96,15 @@ par(las=1, mfrow = c(1,1), mar = c(2,5,2,.5), oma = c(1,1,1.5,1),cex=1.2)
 plot(dd.qpcr.env.adults.rm$Date, dd.qpcr.env.adults.rm$Q_corr_qpcr.rm, xlab='', ylab='', type='l')
 title(ylab='flow-corrected eDNA concentration', outer=T, line=-.8, cex.lab=1.2)
 title(main='Daily eDNA', cex.main=1.5)
+
+# plot(dd.qpcr.env.adults.rm$Date, dd.qpcr.env.adults.rm$testQq, xlab='', ylab='', type='l')
+# title(ylab='flow-corrected eDNA concentration', outer=T, line=-.8, cex.lab=1.2)
+# title(main='Daily eDNA', cex.main=1.5)
+# 
+# plot(dd.qpcr.env.adults.rm$Date, dd.qpcr.env.adults.rm$testq_overQ, xlab='', ylab='', type='l')
+# title(ylab='flow-corrected eDNA concentration', outer=T, line=-.8, cex.lab=1.2)
+# title(main='Daily eDNA', cex.main=1.5)
+
 	
 # dev.off()
 ```

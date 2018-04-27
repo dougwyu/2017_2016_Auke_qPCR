@@ -12,8 +12,8 @@
 rm(list=ls())
 lapply(c('zoo','cowplot','nlme','MuMIn','readxl','sp','geoR','lubridate','tidyverse','INLA'),library,character.only =T)
 	
-setwd("/home/yuanheng/Documents/Project_salmon/R/")
-source('script/source_salmon.r')
+# setwd("/home/yuanheng/Documents/Project_salmon/R/")
+source('source_salmon.r')
 	
 
 	
@@ -60,7 +60,7 @@ corvif(data.frame(Date=dd.qpcr.env.coho[,18], qPCR=dd.qpcr.env.coho[,6], qPCR.n=
 # date & qpcr data too similar
 	
 # ..... descriptive plots ......
-pdf("plots/describe_coho.pdf", width = 15, height = 5)
+# pdf("plots/describe_coho.pdf", width = 15, height = 5)
 par(las=1, mfrow = c(1,1), mar = c(2,5,2,.5), oma = c(1,1,1.5,1),cex=1.2)
 plot(dd.qpcr.env.coho$Date, dd.qpcr.env.coho$sum.adult, xlab='', ylab='' ,type='l', ylim=c(0, max(dd.qpcr.env.coho$sum.2)))
 lines(dd.qpcr.env.coho$Date, dd.qpcr.env.coho$sum.2, col='red')
@@ -69,15 +69,15 @@ title(main='Daily Counts', cex.main=1.5)
 	
 legend('topright', legend = c('adult', paste(expression(adult+jack),sep='')), lty=c(1,1), col=c('black', 'red'), bty='n')
 	
-dev.off()
+# dev.off()
 	
-pdf("plots/describe_coho_qpcr.pdf", width = 15, height = 5)
+# pdf("plots/describe_coho_qpcr.pdf", width = 15, height = 5)
 par(las=1, mfrow = c(1,1), mar = c(2,5,2,.5), oma = c(1,1,1.5,1),cex=1.2)
 plot(dd.qpcr.env.coho$Date, dd.qpcr.env.coho$Quantity, xlab='', ylab='', type='b', pch=16)
 title(ylab='eDNA concentration', outer=T, line=-.8, cex.lab=1.2)
 title(main='Daily eDNA', cex.main=1.5)
 	
-dev.off()
+# dev.off()
 	
 # .......... INLA models ................................
 hist(dd.qpcr.env.coho$date.n,breaks=50)
@@ -206,48 +206,48 @@ mean(m.pnt1.rela$cpo$pit)
 		# adult + jack & time autoregression
 resid.count.ar2 = dd.qpcr.env.coho$sum.2 - m.par2.rela$summary.fitted.values$mean
 	
-pdf("plots/coho_acf_ar-time-AJ.pdf", width = 7, height = 7)
+# pdf("plots/coho_acf_ar-time-AJ.pdf", width = 7, height = 7)
 par(las=1, mfrow = c(1,1), mar = c(4,4,2.5,.5), oma = c(2,1,.5,1),cex=1.2)
 acf(resid.count.ar2,type= 'correlation',main='', cex.lab=1.2)#''covariance
 title(main='Residual Autocorrelation',cex.main=1.35)
 legend('topright', legend = paste(expression(adult+jack&time),sep=''), bty='n')
 	
-dev.off()
+# dev.off()
 	
 		# adult & time autoregression
 resid.count.ar1 = dd.qpcr.env.coho$sum.adult - m.par1.rela$summary.fitted.values$mean
 	
-pdf("plots/coho_acf_ar-time-A.pdf", width = 7, height = 7)
+# pdf("plots/coho_acf_ar-time-A.pdf", width = 7, height = 7)
 par(las=1, mfrow = c(1,1), mar = c(4,4,2.5,.5), oma = c(2,1,.5,1),cex=1.2)
 acf(resid.count.ar1,type= 'correlation',main='', cex.lab=1.2)#''covariance
 title(main='Residual Autocorrelation',cex.main=1.35)
 legend('topright', legend = paste(expression(adult&time),sep=''), bty='n')
 	
-dev.off()
+# dev.off()
 	
 		# adult + jack, no time
 resid.count.nt2 = dd.qpcr.env.coho$sum.2 - m.pnt2.rela$summary.fitted.values$mean
 	
-pdf("plots/coho_acf_ar-notime-AJ.pdf", width = 7, height = 7)
+# pdf("plots/coho_acf_ar-notime-AJ.pdf", width = 7, height = 7)
 par(las=1, mfrow = c(1,1), mar = c(4,4,2.5,.5), oma = c(2,1,.5,1),cex=1.2)
 acf(resid.count.nt2,type= 'correlation',main='', cex.lab=1.2)#''covariance
 title(main='Residual Autocorrelation',cex.main=1.35)
 legend('topright', legend = paste(expression(adult+jack),sep=''), bty='n')
 # not great
 	
-dev.off()
+# dev.off()
 	
 		# adult, no time
 resid.count.nt1 = dd.qpcr.env.coho$sum.adult - m.pnt1.rela$summary.fitted.values$mean
 	
-pdf("plots/coho_acf_ar-notime-A.pdf", width = 7, height = 7)
+# pdf("plots/coho_acf_ar-notime-A.pdf", width = 7, height = 7)
 par(las=1, mfrow = c(1,1), mar = c(4,4,2.5,.5), oma = c(2,1,.5,1),cex=1.2)
 acf(resid.count.nt1,type= 'correlation',main='', cex.lab=1.2)#''covariance
 title(main='Residual Autocorrelation',cex.main=1.35)
 legend('topright', legend = paste(expression(adult),sep=''), bty='n')
 # not great
 	
-dev.off()
+# dev.off()
 	
 c(m.pnt2.rela$dic$dic, m.par2.rela$dic$dic)
 c(m.pnt1.rela$dic$dic, m.par1.rela$dic$dic)
@@ -258,7 +258,7 @@ c(m.pnt1.rela$dic$dic, m.par1.rela$dic$dic)
 # .. plot fitted
 	# adult + jack & time autoregression
 	# According to cov() in the beginning, 'Date' and 'qpcr' are too similar that we shouldn't include them both in the model. But I guess in this model, date serves as autoregression which has way different function than qpcr here ...
-pdf("plots/coho_fitted_ar-time-AJ.pdf", width = 15, height = 5)
+# pdf("plots/coho_fitted_ar-time-AJ.pdf", width = 15, height = 5)
 par(las=1, mfrow = c(1,1), mar = c(4,4,2,.5), oma = c(1,1,1,1),cex=1.2)
 	
 plot(dd.qpcr.env.coho$Date, m.par2.rela$summary.fitted.values[,"mean"], type='n', lty=1, pch=4,col='blue', ylim=c(min(m.par2.rela$summary.fitted.values[,3]),max(m.par2.rela$summary.fitted.values[,5])), xlab='', ylab='')	#, 
@@ -276,11 +276,11 @@ points(dd.qpcr.env.coho$Date, dd.qpcr.env.coho$sum.2, ylab='Total count',xlab='D
 	
 legend('topright', legend=c('count', 'fitted', '95% CI'), pch = c(20,NA, NA), col = c('#FFA50088', 'blue', 'lightblue'), lty=c(NA, 1, 1), lwd=c(1,1,10), bty='n', cex=1.2, title= paste(expression(adult+jack&time),sep=''))
 	
-dev.off()
+# dev.off()
 	
 
 	# adult & time autoregression
-pdf("plots/coho_fitted_ar-time-A.pdf", width = 15, height = 5)
+# pdf("plots/coho_fitted_ar-time-A.pdf", width = 15, height = 5)
 par(las=1, mfrow = c(1,1), mar = c(4,4,2,.5), oma = c(1,1,1,1),cex=1.2)
 	
 plot(dd.qpcr.env.coho$Date, m.par1.rela$summary.fitted.values[,"mean"], type='n', lty=1, pch=4,col='blue', ylim=c(min(m.par1.rela$summary.fitted.values[,3]),max(m.par1.rela$summary.fitted.values[,5])), xlab='', ylab='')	#, 
@@ -298,7 +298,7 @@ points(dd.qpcr.env.coho$Date, dd.qpcr.env.coho$sum.adult, ylab='Total count',xla
 	
 legend('topright', legend=c('count', 'fitted', '95% CI'), pch = c(20,NA, NA), col = c('#FFA50088', 'blue', 'lightblue'), lty=c(NA, 1, 1), lwd=c(1,1,10), bty='n', cex=1.2, title= paste(expression(adult&time),sep=''))
 	
-dev.off()
+# dev.off()
 	
 
 
