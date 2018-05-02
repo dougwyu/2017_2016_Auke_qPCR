@@ -1,6 +1,6 @@
 # Salmon Project
 
-Y. Li, Dec 12 2017
+Li Yuanheng, 12 Dec 2017
 last modified Apr 11 2018
 
 Frequentist version of the model and truncating the model to exclude dead-fish DNA
@@ -50,7 +50,7 @@ names(sockeye_env)
 ```
 Q_cfs seems to be the measure of flux, aka discharge:  cubic feet per second(?).  Cross sectional area X water velocity
 
-```{r summarise and lag lead cols}
+```{r summarise}
 # keep ONLY ONE SET of qPCRs per sampleID and remove rows that have no CT value
 # sockeye_qpcr_filtered <- sockeye_qpcr %>% filter(CT_omit == "no_omit") %>% filter(CT != "NA")
 
@@ -83,10 +83,6 @@ sockeye_qpcr_env <- sockeye_qpcr_env %>% mutate(Q_corr_qpcr = Qty_ng_per_ul_mean
 # qPCR DNA concentration (ng/ul) * water height (gage height) == total DNA
 sockeye_qpcr_env <- sockeye_qpcr_env %>% mutate(G_corr_qpcr = Qty_ng_per_ul_mean*Gage_Height)
 
-# create lead and lag variables of qPCR*Q_cfs to test for temporal autocorrelation
-sockeye_qpcr_env <- sockeye_qpcr_env %>% dplyr::mutate(Q_corr_qpcr.lag = lag(Q_corr_qpcr))
-sockeye_qpcr_env <- sockeye_qpcr_env %>% dplyr::mutate(Q_corr_qpcr.lead = lead(Q_corr_qpcr))
-
 sockeye_qpcr_env_adults <- sockeye_qpcr_env %>% filter(updownstream == "upstream")
 ```
 
@@ -94,19 +90,22 @@ At this point, the dataset sockeye_qpcr_env should have one row per water sample
 
 For graphing, the sockeye_qpcr_env dataset will need to be separated into two subdatasets (SampleReplicate == A or == B), or do a summarise by SampleNumber, not SampleID.  
 
-```{r}
+```{r choose A or B replicate}
 names(sockeye_qpcr_env_adults)
 #  [1] "SampleID"           "Date"               "Plate_ID"           "SampleNumber"       "SampleReplicate"   
 #  [6] "updownstream"       "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean" "Qty_ng_per_ul_sd"  
 # [11] "n_qpcrs"            "Smolts"             "Sockeye_Male"       "Sockeye_Female"     "Sockeye_Jack"      
 # [16] "SockeyeTotalCount"  "Water_Date"         "Gage_Height"        "Depth_inches"       "Q_cfs"             
-# [21] "Avg_Temp"           "Q_corr_qpcr"        "G_corr_qpcr"        "Q_corr_qpcr.lag"    "Q_corr_qpcr.lead"   
+# [21] "Avg_Temp"           "Q_corr_qpcr"        "G_corr_qpcr"           
 
 # only analyse sampleReplicate A or B
 sockeye_qpcr_env_adults_A <- sockeye_qpcr_env_adults %>% filter(SampleReplicate == "A")
 sockeye_qpcr_env_adults_B <- sockeye_qpcr_env_adults %>% filter(SampleReplicate == "B")
 
 sockeye_qpcr_env_adults_use <- sockeye_qpcr_env_adults_B
+```
+
+```{r ggplot timelines}
 
 sockadults <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, SockeyeTotalCount)) + geom_line() + xlab("") + ylab("Adult Counts") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
 
@@ -132,8 +131,17 @@ http://ggplot2.tidyverse.org/reference/facet_grid.html
 https://cran.r-project.org/web/packages/cowplot/vignettes/introduction.html
 
 ```{r}
-# write.csv(sockeye_qpcr_env_adults_A, "analysis/sockeye_qpcr_env_adults_A.csv")
-# write.csv(sockeye_qpcr_env_adults_B, "analysis/sockeye_qpcr_env_adults_B.csv")
+# write.tsv(sockeye_qpcr_env_adults_A, "analysis/sockeye_qpcr_env_adults_A.tsv")
+# write.tsv(sockeye_qpcr_env_adults_B, "analysis/sockeye_qpcr_env_adults_B.tsv")
+
+# sockeye_qpcr_env_adults_use <- read_tsv("analysis/sockeye_qpcr_env_adults_B.tsv")
+```
+
+```{r lag and lead Q_corr_qpcr}
+# create lead and lag variables of qPCR*Q_cfs to test for temporal autocorrelation
+sockeye_qpcr_env_adults_use <- sockeye_qpcr_env_adults_use %>% dplyr::mutate(Q_corr_qpcr.lag = lag(Q_corr_qpcr))
+sockeye_qpcr_env_adults_use <- sockeye_qpcr_env_adults_use %>% dplyr::mutate(Q_corr_qpcr.lead = lead(Q_corr_qpcr))
+
 names(sockeye_qpcr_env_adults_use)
 #  [1] "SampleID"           "Date"               "Plate_ID"           "SampleNumber"       "SampleReplicate"   
 #  [6] "updownstream"       "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean" "Qty_ng_per_ul_sd"  
@@ -145,7 +153,7 @@ names(sockeye_qpcr_env_adults_use)
 
 ```{r read in data see salmon_datamining.r, eval = FALSE}
 dd.qpcr.env.adults.rm <- sockeye_qpcr_env_adults_use
-# using doug's dataset, from the code above
+# the code below uses dd.qpcr.env.adults.rm as the input dataset, but the code above produces sockeye_qpcr_env_adults_use as the dataset, so this links between the two 
 
 # dd.qpcr.env.adults.rm = read.table(file='data/sockeye_adults_narm_B.csv',sep=',',header=T)
 # there's another file where NAs of qPCR are treated as zero ->
@@ -168,7 +176,7 @@ for (i in length(a):1){
 dd.qpcr.env.adults.rm$date.n = a
 ```
 
-```{r truncate}
+```{r truncate to remove DNA from dead adults and eggs/sperm}
 dd.qpcr.env.adults.rm <- dd.qpcr.env.adults.rm %>% dplyr::filter(SampleNumber < 45)
 ```
 
@@ -191,67 +199,113 @@ dd.qpcr.env.adults.rm = dd.qpcr.env.adults.rm[7:43, ]
 dd.qpcr.env.adults.rm$txtdate
 ```
 
-```{r}
+```{r sockeye count as response and Q_corr_qpcr as predictor}
 par(mfrow=c(1,1))
-#flowDNA vs count poisson
+# Poisson model
+flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr*Avg_Temp,data=dd.qpcr.env.adults.rm,family="poisson")
+summary(flowDNAvsCount)
+# very overdispersed and interaction ns
+flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr + Avg_Temp,data=dd.qpcr.env.adults.rm,family="poisson")
+summary(flowDNAvsCount)
+# very overdispersed
+# quasipoisson
 flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr+Avg_Temp,data=dd.qpcr.env.adults.rm,family="quasipoisson")
 summary(flowDNAvsCount)
 
-plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
-lines(dd.qpcr.env.adults.rm$Date[1:37],exp(predict(flowDNAvsCount)),lty=2,col="blue")
-lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="red")
-lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="green")
-acf(resid(flowDNAvsCount))
+plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l', ylim=c(0, 900), main = "Q_corr_qpcr")
+lines(dd.qpcr.env.adults.rm$Date[1:37],exp(predict(flowDNAvsCount)),lty=2,col="black")
+lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="blue")
+lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="red")
 
-#Coho modfel
+acf(resid(flowDNAvsCount))
+# residuals are not autocorrelated
+# 
+dd.qpcr.env.adults.rm$SockeyeTotalCount
+sum(dd.qpcr.env.adults.rm$SockeyeTotalCount)
+exp(predict(flowDNAvsCount))
+sum(exp(predict(flowDNAvsCount)))
+```
+
+```{r sockeye count as response and Q_corr_qpcr.lag as predictor}
+# Q_corr_qpcr.lag means that yesterday's qPCR measure is used to predict today's salmon count
+# Poisson model
+flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr.lag * Avg_Temp,data=dd.qpcr.env.adults.rm,family="poisson")
+summary(flowDNAvsCount)
+# very overdispersed and interaction sig
+flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr.lag * Avg_Temp,data=dd.qpcr.env.adults.rm,family="quasipoisson")
+summary(flowDNAvsCount)
+# quasipoisson and all terms non sig
+flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr.lag + Avg_Temp,data=dd.qpcr.env.adults.rm,family="quasipoisson")
+summary(flowDNAvsCount)
+
 par(mfrow=c(1,1))
-#flowDNA vs count poisson
-flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr+Avg_Temp,data=dd.qpcr.env.adults.rm,family="quasipoisson")
-summary(flowDNAvsCount)
 plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
-lines(dd.qpcr.env.adults.rm$Date[1:37],exp(predict(flowDNAvsCount)),lty=2,col="blue")
-lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="red")
-lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="green")
+lines(dd.qpcr.env.adults.rm$Date[1:37],exp(predict(flowDNAvsCount)),lty=2,col="black")
+lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="blue")
+lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="red")
+
 acf(resid(flowDNAvsCount))
+# residuals are not autocorrelated
 
-###########################
-###########################
-###########################
-###########################
+```
 
-#flowDNA vs count poisson
-flowDNAvsCount=glm(SockeyeTotalCount~Qty_ng_per_ul_mean+Q_cfs+Avg_Temp,data=dd.qpcr.env.adults.rm,family="quasipoisson")
+```{r sockeye count as response and Q_corr_qpcr.lead as predictor}
+# Q_corr_qpcr.lag means that tomorrow's qPCR measure is used to predict today's salmon count
+# Poisson model
+flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr.lead * Avg_Temp,data=dd.qpcr.env.adults.rm,family="poisson")
 summary(flowDNAvsCount)
-plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
-lines(dd.qpcr.env.adults.rm$Date[1:37],exp(predict(flowDNAvsCount)),lty=2,col="blue")
-lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="red")
-lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="green")
-acf(resid(flowDNAvsCount))
-
-
-
-
-
-#flowDNA vs count poisson
-flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr+Avg_Temp,data=dd.qpcr.env.adults.rm)
+# very overdispersed and interaction sig
+flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr.lead * Avg_Temp,data=dd.qpcr.env.adults.rm,family="quasipoisson")
 summary(flowDNAvsCount)
-plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
-lines(dd.qpcr.env.adults.rm$Date[1:37],(predict(flowDNAvsCount)),lty=2,col="blue")
-lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="red")
-lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="green")
-acf(resid(flowDNAvsCount))
-#DNA*flow vs count
-DNAvsCount=lm(SockeyeTotalCount~Qty_ng_per_ul_mean*Q_cfs,data=dd.qpcr.env.adults.rm)
-summary(DNAvsCount)
-plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
-lines(dd.qpcr.env.adults.rm$Date,predict(DNAvsCount),lty=2,col="blue")
-acf(resid(DNAvsCount))
+# quasipoisson and all terms non sig
+flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr.lead + Avg_Temp,data=dd.qpcr.env.adults.rm,family="quasipoisson")
+summary(flowDNAvsCount)
+# quasipoisson and both main terms sig
 
+par(mfrow=c(1,1))
+plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
+lines(dd.qpcr.env.adults.rm$Date[1:37],exp(predict(flowDNAvsCount)),lty=2,col="black")
+lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="blue")
+lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="red")
+
+acf(resid(flowDNAvsCount))
+# residuals are not autocorrelated
+
+```
+
+```{r sockeye count as response and Q_corr_qpcr + Q_corr_qpcr.lead as predictor}
+# Q_corr_qpcr.lag means that tomorrow's qPCR measure is used to predict today's salmon count
+# Poisson model
+flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr + Q_corr_qpcr.lead + Avg_Temp,data=dd.qpcr.env.adults.rm,family="poisson")
+summary(flowDNAvsCount)
+# very overdispersed
+flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr*Avg_Temp + Q_corr_qpcr.lead*Avg_Temp,data=dd.qpcr.env.adults.rm, family="quasipoisson")
+summary(flowDNAvsCount)
+# quasipoisson and interaction terms non sig
+flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr + Q_corr_qpcr.lead + Avg_Temp, data=dd.qpcr.env.adults.rm, family="quasipoisson")
+summary(flowDNAvsCount)
+# quasipoisson and temp term non sig
+
+par(mfrow=c(1,1))
+plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l', ylim = c(0, 900), main = "Q_corr_qpcr + Q_corr_qpcr.lead")
+lines(dd.qpcr.env.adults.rm$Date[1:37],exp(predict(flowDNAvsCount)),lty=2,col="black")
+lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="blue")
+lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="red")
+
+acf(resid(flowDNAvsCount))
+# residuals are not autocorrelated
+
+```
+
+more deviance explained with Q_corr_qpcr + Q_corr_qpcr.lead than with Q_corr_qpcr alone, but the visual fit looks better with Q_corr_qpcr alone (no major overprediction of counts)
+
+```{r sockeye count as predictor and Q_corr_qpcr as response}
 #count_t vs DNA
-CountvsDNA=lm(Q_corr_qpcr[2:47]~SockeyeTotalCount[1:46]+SockeyeTotalCount[2:47],data=dd.qpcr.env.adults.rm)
+CountvsDNA=lm(Q_corr_qpcr[1:36] ~ SockeyeTotalCount[1:36]+SockeyeTotalCount[2:37],data=dd.qpcr.env.adults.rm)
 summary(CountvsDNA)
-plot(dd.qpcr.env.adults.rm$Date[2:47],dd.qpcr.env.adults.rm$Q_corr_qpcr[2:47],type='l')
-lines(dd.qpcr.env.adults.rm$Date[2:47],predict(CountvsDNA),lty=2,col="blue")
+plot(dd.qpcr.env.adults.rm$Date[2:47], dd.qpcr.env.adults.rm$Q_corr_qpcr[2:47],type='l')
+predict(CountvsDNA)
+lines(dd.qpcr.env.adults.rm$Date[1:36],predict(CountvsDNA),lty=2,col="blue")
 acf(resid(CountvsDNA))
 
 #add AR1 term
