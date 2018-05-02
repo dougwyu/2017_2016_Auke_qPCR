@@ -10,14 +10,14 @@ DY questions:
 2.  what is source of Q_corr_qpcr.rm?
 
 
+```{r, eval = FALSE}
+rm(list=ls())
+```
+
 ```{r packages and functions}
 lapply(c('zoo','cowplot','nlme','MuMIn','readxl','sp','geoR','lubridate','tidyverse','INLA'),library,character.only = T)
 # geoR requires XQuartz to be installed, from xquartz.macosforge.org
 # install.packages("INLA", repos="https://inla.r-inla-download.org/R/stable", dep=TRUE)
-```
-
-```{r, eval = FALSE}
-rm(list=ls())
 ```
 
 ```{r}
@@ -25,8 +25,129 @@ sessionInfo()
 source('source_salmon.r')
 ```
 
-```{r read in data see salmon_datamining.r}
-dd.qpcr.env.adults.rm = read.table(file='data/sockeye_adults_narm_B.csv',sep=',',header=T)
+
+```{r sockeye input}
+inputfile <- "data/AukeCreek_Sockeye_2016_qPCRVsCount_20170802.2.xlsx"
+
+sockeye_qpcr <- read_excel(inputfile, "Ct_Sockeye_2016_work", col_names = TRUE, col_types = c("date","numeric","text","text","text","numeric","text","text","text","numeric","numeric","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip","skip"), na = "NA")
+
+sockeye_env <- read_excel(inputfile, "Summary", col_names = TRUE, col_types = c("skip","skip","skip","skip","skip","date","numeric","numeric","numeric","numeric","numeric","date","numeric","numeric","numeric","numeric","skip","skip","skip","skip"), na = "NA", n_max = 170)  # check number of rows to be input.  
+```
+
+
+```{r names}
+names(sockeye_qpcr)
+# [1] "Date"            "orig_order"      "Plate_ID"        "Well"           
+# [5] "SampleID"        "SampleNumber"    "SampleReplicate" "CT_omit"        
+# [9] "updownstream"    "CT"              "Qty_ng_per_ul"  
+
+names(sockeye_env)
+# [1] "Date"              "Smolts"            "Sockeye_Male"     
+# [4] "Sockeye_Female"    "Sockeye_Jack"      "SockeyeTotalCount"
+# [7] "Water_Date"        "Gage_Height"       "Depth_inches"     
+# [10] "Q_cfs"             "Avg_Temp"
+
+```
+Q_cfs seems to be the measure of flux, aka discharge:  cubic feet per second(?).  Cross sectional area X water velocity
+
+```{r summarise and lag lead cols}
+# keep ONLY ONE SET of qPCRs per sampleID and remove rows that have no CT value
+# sockeye_qpcr_filtered <- sockeye_qpcr %>% filter(CT_omit == "no_omit") %>% filter(CT != "NA")
+
+# OR keep ALL SETS of qPCRs per sampleID and remove rows that have no CT value
+sockeye_qpcr_filtered <- sockeye_qpcr %>% filter(CT != "NA")
+
+sockeye_qpcr_summary <- sockeye_qpcr_filtered %>% group_by(SampleID) %>% summarise(Date = first(Date), Plate_ID = first(Plate_ID), SampleNumber = first(SampleNumber), SampleReplicate = first(SampleReplicate), updownstream = first(updownstream), CT_mean = mean(CT, na.rm=TRUE), CT_sd = sd(CT, na.rm=TRUE), Qty_ng_per_ul_mean = mean(Qty_ng_per_ul, na.rm=TRUE), Qty_ng_per_ul_sd = sd(Qty_ng_per_ul, na.rm=TRUE), n_qpcrs = sum(!is.na(CT))) %>% arrange(Date)
+
+# n_qpcrs = n() # previously used instead of n_qpcrs = sum(!is.na(CT))
+
+names(sockeye_qpcr_summary)
+#  [1] "SampleID"           "Date"               "Plate_ID"           "SampleNumber"       "SampleReplicate"   
+#  [6] "updownstream"       "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean" "Qty_ng_per_ul_sd"  
+# [11] "n_qpcrs"           
+ 
+sockeye_qpcr_env <-  left_join(sockeye_qpcr_summary, sockeye_env, by = "Date")
+
+names(sockeye_qpcr_env)
+#  [1] "SampleID"           "Date"               "Plate_ID"           "SampleNumber"       "SampleReplicate"   
+#  [6] "updownstream"       "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean" "Qty_ng_per_ul_sd"  
+# [11] "n_qpcrs"            "Smolts"             "Sockeye_Male"       "Sockeye_Female"     "Sockeye_Jack"      
+# [16] "SockeyeTotalCount"  "Water_Date"         "Gage_Height"        "Depth_inches"       "Q_cfs"             
+# [21] "Avg_Temp"        
+
+# sockeye_qpcr_env <- sockeye_qpcr_env %>% mutate(Q_corr_qpcr = Qty_ng_per_ul_mean*(Q_cfs/max(Q_cfs)))
+# qPCR DNA concentration (ng/ul) * water volume (flux cubic feet per second) == total DNA
+sockeye_qpcr_env <- sockeye_qpcr_env %>% mutate(Q_corr_qpcr = Qty_ng_per_ul_mean*Q_cfs) 
+
+# sockeye_qpcr_env <- sockeye_qpcr_env %>% mutate(G_corr_qpcr = Qty_ng_per_ul_mean*(Gage_Height/max(Gage_Height)))
+# qPCR DNA concentration (ng/ul) * water height (gage height) == total DNA
+sockeye_qpcr_env <- sockeye_qpcr_env %>% mutate(G_corr_qpcr = Qty_ng_per_ul_mean*Gage_Height)
+
+# create lead and lag variables of qPCR*Q_cfs to test for temporal autocorrelation
+sockeye_qpcr_env <- sockeye_qpcr_env %>% dplyr::mutate(Q_corr_qpcr.lag = lag(Q_corr_qpcr))
+sockeye_qpcr_env <- sockeye_qpcr_env %>% dplyr::mutate(Q_corr_qpcr.lead = lead(Q_corr_qpcr))
+
+sockeye_qpcr_env_adults <- sockeye_qpcr_env %>% filter(updownstream == "upstream")
+```
+
+At this point, the dataset sockeye_qpcr_env should have one row per water sample (SampleID). Since there are two water samples per day, there should be an even number of rows (sampling days X 2), but some water samples failed completely in qPCR, so the final number of rows is 243.  The salmon count and water data are thus repeated over the two water samples.  
+
+For graphing, the sockeye_qpcr_env dataset will need to be separated into two subdatasets (SampleReplicate == A or == B), or do a summarise by SampleNumber, not SampleID.  
+
+```{r}
+names(sockeye_qpcr_env_adults)
+#  [1] "SampleID"           "Date"               "Plate_ID"           "SampleNumber"       "SampleReplicate"   
+#  [6] "updownstream"       "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean" "Qty_ng_per_ul_sd"  
+# [11] "n_qpcrs"            "Smolts"             "Sockeye_Male"       "Sockeye_Female"     "Sockeye_Jack"      
+# [16] "SockeyeTotalCount"  "Water_Date"         "Gage_Height"        "Depth_inches"       "Q_cfs"             
+# [21] "Avg_Temp"           "Q_corr_qpcr"        "G_corr_qpcr"        "Q_corr_qpcr.lag"    "Q_corr_qpcr.lead"   
+
+# only analyse sampleReplicate A or B
+sockeye_qpcr_env_adults_A <- sockeye_qpcr_env_adults %>% filter(SampleReplicate == "A")
+sockeye_qpcr_env_adults_B <- sockeye_qpcr_env_adults %>% filter(SampleReplicate == "B")
+
+sockeye_qpcr_env_adults_use <- sockeye_qpcr_env_adults_B
+
+sockadults <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, SockeyeTotalCount)) + geom_line() + xlab("") + ylab("Adult Counts") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+
+sockqpcrcorrQ <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Q_corr_qpcr)) + geom_line() + xlab("") + ylab("Qcfs_corr_qPCR") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+
+sockqpcr <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Qty_ng_per_ul_mean)) + geom_line() + xlab("") + ylab("qPCR conc") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+
+Q_cfs <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Q_cfs)) + geom_line() + xlab("") + ylab("Q_cfs") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+
+water <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Gage_Height)) + geom_line() + xlab("") + ylab("Gage Height") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+
+sockqpcrcorrG <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, G_corr_qpcr)) + geom_line() + xlab("") + ylab("Gage_corr_qPCR") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+
+temp <- ggplot(sockeye_qpcr_env_adults_use, aes(Date, Avg_Temp)) + geom_line() + xlab("") + ylab("Avg Temp") + background_grid(major = "x", minor="x", size.minor = 0.5, colour.minor = "grey90")
+
+plot_grid(sockadults, sockqpcr, sockqpcrcorrQ, Q_cfs, sockqpcrcorrG, water, temp, nrow = 7, align = "v")
+
+
+# background_grid(major = c("xy", "x", "y", "only_minor", "none"), minor = c("xy", "x", "y", "none"), size.major = 0.2, size.minor = 0.5, colour.major = "grey90", colour.minor = "grey98")
+```
+
+http://ggplot2.tidyverse.org/reference/facet_grid.html
+https://cran.r-project.org/web/packages/cowplot/vignettes/introduction.html
+
+```{r}
+# write.csv(sockeye_qpcr_env_adults_A, "analysis/sockeye_qpcr_env_adults_A.csv")
+# write.csv(sockeye_qpcr_env_adults_B, "analysis/sockeye_qpcr_env_adults_B.csv")
+names(sockeye_qpcr_env_adults_use)
+#  [1] "SampleID"           "Date"               "Plate_ID"           "SampleNumber"       "SampleReplicate"   
+#  [6] "updownstream"       "CT_mean"            "CT_sd"              "Qty_ng_per_ul_mean" "Qty_ng_per_ul_sd"  
+# [11] "n_qpcrs"            "Smolts"             "Sockeye_Male"       "Sockeye_Female"     "Sockeye_Jack"      
+# [16] "SockeyeTotalCount"  "Water_Date"         "Gage_Height"        "Depth_inches"       "Q_cfs"             
+# [21] "Avg_Temp"           "Q_corr_qpcr"        "G_corr_qpcr"        "Q_corr_qpcr.lag"    "Q_corr_qpcr.lead"  
+```
+
+
+```{r read in data see salmon_datamining.r, eval = FALSE}
+dd.qpcr.env.adults.rm <- sockeye_qpcr_env_adults_use
+# using doug's dataset, from the code above
+
+# dd.qpcr.env.adults.rm = read.table(file='data/sockeye_adults_narm_B.csv',sep=',',header=T)
 # there's another file where NAs of qPCR are treated as zero ->
 # file='data/sockeye_adults_nazero_B.csv'
 # the plots I sent to you before are results of this dataset
@@ -52,8 +173,8 @@ dd.qpcr.env.adults.rm <- dd.qpcr.env.adults.rm %>% dplyr::filter(SampleNumber < 
 ```
 
 ```{r standardize variable}
-dd.qpcr.env.adults.rm$Q_corr_qpcr.rm.norm2 = MyStd(dd.qpcr.env.adults.rm$Q_corr_qpcr.rm) # dd.qpcr.env.adults.rm$Q_corr_qpcr.rm = Qty_ng_per_ul_mean/Q_cfs, standardised
-hist(dd.qpcr.env.adults.rm$Q_corr_qpcr.rm.norm2, breaks=10)
+dd.qpcr.env.adults.rm$Q_corr_qpcr.norm2 = MyStd(dd.qpcr.env.adults.rm$Q_corr_qpcr) # dd.qpcr.env.adults.rm$Q_corr_qpcr.rm = Qty_ng_per_ul_mean/Q_cfs, standardised
+hist(dd.qpcr.env.adults.rm$Q_corr_qpcr.norm2, breaks=10)
 
 # dd.qpcr.env.adults.rm$testQq <- dd.qpcr.env.adults.rm$Qty_ng_per_ul_mean*dd.qpcr.env.adults.rm$Q_cfs
 # dd.qpcr.env.adults.rm$testq_overQ <- dd.qpcr.env.adults.rm$Qty_ng_per_ul_mean/dd.qpcr.env.adults.rm$Q_cfs
@@ -66,9 +187,95 @@ a[1:109]
 a[2:110]-a[1:109]
 a
 
-dd.qpcr.env.adults.rm = dd.qpcr.env.adults.rm[7:53, ]
+dd.qpcr.env.adults.rm = dd.qpcr.env.adults.rm[7:43, ]
 dd.qpcr.env.adults.rm$txtdate
 ```
+
+```{r}
+par(mfrow=c(1,1))
+#flowDNA vs count poisson
+flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr+Avg_Temp,data=dd.qpcr.env.adults.rm,family="quasipoisson")
+summary(flowDNAvsCount)
+
+plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
+lines(dd.qpcr.env.adults.rm$Date[1:37],exp(predict(flowDNAvsCount)),lty=2,col="blue")
+lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="red")
+lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="green")
+acf(resid(flowDNAvsCount))
+
+#Coho modfel
+par(mfrow=c(1,1))
+#flowDNA vs count poisson
+flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr+Avg_Temp,data=dd.qpcr.env.adults.rm,family="quasipoisson")
+summary(flowDNAvsCount)
+plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
+lines(dd.qpcr.env.adults.rm$Date[1:37],exp(predict(flowDNAvsCount)),lty=2,col="blue")
+lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="red")
+lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="green")
+acf(resid(flowDNAvsCount))
+
+###########################
+###########################
+###########################
+###########################
+
+#flowDNA vs count poisson
+flowDNAvsCount=glm(SockeyeTotalCount~Qty_ng_per_ul_mean+Q_cfs+Avg_Temp,data=dd.qpcr.env.adults.rm,family="quasipoisson")
+summary(flowDNAvsCount)
+plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
+lines(dd.qpcr.env.adults.rm$Date[1:37],exp(predict(flowDNAvsCount)),lty=2,col="blue")
+lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="red")
+lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="green")
+acf(resid(flowDNAvsCount))
+
+
+
+
+
+#flowDNA vs count poisson
+flowDNAvsCount=glm(SockeyeTotalCount~Q_corr_qpcr+Avg_Temp,data=dd.qpcr.env.adults.rm)
+summary(flowDNAvsCount)
+plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
+lines(dd.qpcr.env.adults.rm$Date[1:37],(predict(flowDNAvsCount)),lty=2,col="blue")
+lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="red")
+lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="green")
+acf(resid(flowDNAvsCount))
+#DNA*flow vs count
+DNAvsCount=lm(SockeyeTotalCount~Qty_ng_per_ul_mean*Q_cfs,data=dd.qpcr.env.adults.rm)
+summary(DNAvsCount)
+plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
+lines(dd.qpcr.env.adults.rm$Date,predict(DNAvsCount),lty=2,col="blue")
+acf(resid(DNAvsCount))
+
+#count_t vs DNA
+CountvsDNA=lm(Q_corr_qpcr[2:47]~SockeyeTotalCount[1:46]+SockeyeTotalCount[2:47],data=dd.qpcr.env.adults.rm)
+summary(CountvsDNA)
+plot(dd.qpcr.env.adults.rm$Date[2:47],dd.qpcr.env.adults.rm$Q_corr_qpcr[2:47],type='l')
+lines(dd.qpcr.env.adults.rm$Date[2:47],predict(CountvsDNA),lty=2,col="blue")
+acf(resid(CountvsDNA))
+
+#add AR1 term
+mdl1.ac <- gls(SockeyeTotalCount ~ Qty_ng_per_ul_mean*Q_cfs, data=dd.qpcr.env.adults.rm,
+              correlation = corAR1(form=~Qty_ng_per_ul_mean))
+plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
+lines(dd.qpcr.env.adults.rm$Date,predict(mdl1.ac),lty=2,col="blue")
+
+
+#DNA*flow with lag vs count 
+DNAvsCountlag=lm(SockeyeTotalCount[2:47]~Qty_ng_per_ul_mean[1:46]*Q_cfs[1:46]+Qty_ng_per_ul_mean[2:47]*Q_cfs[2:47],data=dd.qpcr.env.adults.rm)
+summary(DNAvsCountlag)
+
+plot(dd.qpcr.env.adults.rm$Date[2:47],dd.qpcr.env.adults.rm$SockeyeTotalCount[2:47],type='l')
+lines(dd.qpcr.env.adults.rm$Date[2:47],predict(DNAvsCountlag),lty=2,col="blue")
+
+acf(resid(DNAvsCount))
+```
+
+
+
+
+Yuanheng code
+
 
 ```{r explore potential independent variables}
 names(dd.qpcr.env.adults.rm)
@@ -83,7 +290,6 @@ corvif(dd.qpcr.env.adults.rm[ , c(MyVar[2:4], "date.n")])
 	
 corvif(dd.qpcr.env.adults.rm[ , c(MyVar[c(2,4)], "date.n")])
 ```
-
 
 ```{r descriptive plots}
 # plot(dd.qpcr.env.adults.rm$testq_overQ, dd.qpcr.env.adults.rm$testQq)
@@ -123,7 +329,6 @@ inla.setOption(scale.model.default = TRUE)
 U = 0.1			# explore U & sigma values
 hyperl=list(theta=list(prior='pc.prec', param=c(U, 0.05)))
 ```
-
 	
 ```{r zero-inflated Poission & ar1}
 # 'ar' - regularly spaced time-series
@@ -138,7 +343,6 @@ m.par0.rela = inla(SockeyeTotalCount ~ Q_corr_qpcr.rm.norm2 + f(txtdate, model =
 summary(m.par0.rela)
 ```
 
-	
 ```{r no autoregression}
 m.pnt.rela = inla(SockeyeTotalCount ~ Q_corr_qpcr.rm.norm2,
 			# verbose = T,
@@ -154,7 +358,6 @@ summary(m.pnt.rela)
 	
 # DIC-value way too high
 ```
-
 
 ```{r model check}
 #	I also tried some other model-checking criteria, but they're either too conservative (meaning all models are good according to these conservative criteria) or I'm not quite sure if I did a correct job applying them. 
@@ -283,92 +486,6 @@ abline(v = m.pnt.rela$summary.fixed['Q_corr_qpcr.rm.norm2', "0.975quant"]*aa + b
 	
 # dev.off()
 ```
-
-
-```{r}
-# create TaalY var
-dd.qpcr.env.adults.rm$TaalY=dd.qpcr.env.adults.rm$Qty_ng_per_ul_mean*dd.qpcr.env.adults.rm$Q_cfs
-
-par(mfrow=c(1,1))
-#flowDNA vs count poisson
-flowDNAvsCount=glm(SockeyeTotalCount~TaalY+Avg_Temp,data=dd.qpcr.env.adults.rm,family="quasipoisson")
-summary(flowDNAvsCount)
-plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
-lines(dd.qpcr.env.adults.rm$Date[1:37],exp(predict(flowDNAvsCount)),lty=2,col="blue")
-lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="red")
-lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="green")
-acf(resid(flowDNAvsCount))
-
-#Coho modfel
-par(mfrow=c(1,1))
-#flowDNA vs count poisson
-flowDNAvsCount=glm(SockeyeTotalCount~TaalY+Avg_Temp,data=dd.qpcr.env.adults.rm,family="quasipoisson")
-summary(flowDNAvsCount)
-plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
-lines(dd.qpcr.env.adults.rm$Date[1:37],exp(predict(flowDNAvsCount)),lty=2,col="blue")
-lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="red")
-lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="green")
-acf(resid(flowDNAvsCount))
-
-###########################
-###########################
-###########################
-###########################
-
-#flowDNA vs count poisson
-flowDNAvsCount=glm(SockeyeTotalCount~Qty_ng_per_ul_mean+Q_cfs+Avg_Temp,data=dd.qpcr.env.adults.rm,family="quasipoisson")
-summary(flowDNAvsCount)
-plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
-lines(dd.qpcr.env.adults.rm$Date[1:37],exp(predict(flowDNAvsCount)),lty=2,col="blue")
-lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="red")
-lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="green")
-acf(resid(flowDNAvsCount))
-
-
-
-
-
-#flowDNA vs count poisson
-flowDNAvsCount=glm(SockeyeTotalCount~TaalY+Avg_Temp,data=dd.qpcr.env.adults.rm)
-summary(flowDNAvsCount)
-plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
-lines(dd.qpcr.env.adults.rm$Date[1:37],(predict(flowDNAvsCount)),lty=2,col="blue")
-lines(dd.qpcr.env.adults.rm$Date[1:37],dd.qpcr.env.adults.rm$Q_cfs[1:37],lty=3,col="red")
-lines(dd.qpcr.env.adults.rm$Date[1:37],10*dd.qpcr.env.adults.rm$Avg_Temp[1:37],lty=3,col="green")
-acf(resid(flowDNAvsCount))
-#DNA*flow vs count
-DNAvsCount=lm(SockeyeTotalCount~Qty_ng_per_ul_mean*Q_cfs,data=dd.qpcr.env.adults.rm)
-summary(DNAvsCount)
-plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
-lines(dd.qpcr.env.adults.rm$Date,predict(DNAvsCount),lty=2,col="blue")
-acf(resid(DNAvsCount))
-
-#count_t vs DNA
-CountvsDNA=lm(TaalY[2:47]~SockeyeTotalCount[1:46]+SockeyeTotalCount[2:47],data=dd.qpcr.env.adults.rm)
-summary(CountvsDNA)
-plot(dd.qpcr.env.adults.rm$Date[2:47],dd.qpcr.env.adults.rm$TaalY[2:47],type='l')
-lines(dd.qpcr.env.adults.rm$Date[2:47],predict(CountvsDNA),lty=2,col="blue")
-acf(resid(CountvsDNA))
-
-#add AR1 term
-mdl1.ac <- gls(SockeyeTotalCount ~ Qty_ng_per_ul_mean*Q_cfs, data=dd.qpcr.env.adults.rm,
-              correlation = corAR1(form=~Qty_ng_per_ul_mean))
-plot(dd.qpcr.env.adults.rm$Date,dd.qpcr.env.adults.rm$SockeyeTotalCount,type='l')
-lines(dd.qpcr.env.adults.rm$Date,predict(mdl1.ac),lty=2,col="blue")
-
-
-#DNA*flow with lag vs count 
-DNAvsCountlag=lm(SockeyeTotalCount[2:47]~Qty_ng_per_ul_mean[1:46]*Q_cfs[1:46]+Qty_ng_per_ul_mean[2:47]*Q_cfs[2:47],data=dd.qpcr.env.adults.rm)
-summary(DNAvsCountlag)
-
-plot(dd.qpcr.env.adults.rm$Date[2:47],dd.qpcr.env.adults.rm$SockeyeTotalCount[2:47],type='l')
-lines(dd.qpcr.env.adults.rm$Date[2:47],predict(DNAvsCountlag),lty=2,col="blue")
-
-acf(resid(DNAvsCount))
-```
-
-
-
 
 
 
